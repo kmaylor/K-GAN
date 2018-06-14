@@ -34,8 +34,8 @@ class KGAN(object):
         self.G = None   # generator
         self.DM = None  # discriminator model
         self.AM = None  # adversarial model
-        self.kernels = [15,10,5]
-        self.strides = [8,4,2]
+        self.kernels = kernels
+        self.strides = strides
         self.depth = 64
         if depth_scale == None:
             self.depth_scale = lambda:((2*np.ones(len(self.kernels)))**np.arange(len(self.kernels))).astype('int')
@@ -101,12 +101,12 @@ class KGAN(object):
         for i,ks in enumerate(zip(self.kernels,self.strides)):
         	self.G.add(BatchNormalization(momentum=0.9, name = 'BN_G%i'%(i+1)))
         	if i < len(self.kernels)-1:
-        		#self.G.add(UpSampling2D())
-        		self.G.add(Conv2DTranspose(depth*depth_scale[i+1], ks[0], strides = ks[1], padding='same',
+        		self.G.add(UpSampling2D(ks[1]))
+        		self.G.add(Conv2DTranspose(depth*depth_scale[i+1], ks[0], strides = 1, padding='same',
         	            kernel_initializer=initial, name = 'ConvTr2D_%i'%(i+1)))
         		self.G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G%i'%(i+2)))
         	else:
-        		self.G.add(Conv2DTranspose(1, self.kernels[-1], strides = self.strides[-1], padding='same',
+        		self.G.add(Conv2DTranspose(1, self.kernels[-1], strides = 1, padding='same',
         	            kernel_initializer=initial, name = 'ConvTr2D_%i'%(i+1)))
         		self.G.add(Activation('tanh', name = 'Tanh'))
         
@@ -119,7 +119,7 @@ class KGAN(object):
     def discriminator_model(self):
         if self.DM:
             return self.DM
-        optimizer = Adam(lr=0.0002,beta_1=0.5, decay=0)
+        optimizer = Adam(lr=0.00005,beta_1=0.5, decay=0)
         self.DM = Sequential(name = 'Discriminator Model')
         self.DM.add(self.discriminator())
         self.DM.compile(loss='binary_crossentropy', optimizer=optimizer,\
@@ -130,7 +130,7 @@ class KGAN(object):
     def adversarial_model(self):
         if self.AM:
             return self.AM
-        optimizer = Adam(lr=0.0002,beta_1=0.5, decay=0)
+        optimizer = Adam(lr=0.00005,beta_1=0.5, decay=0)
         self.AM = Sequential(name = 'Adversarial Model')
         self.AM.add(self.generator())
         discriminator =self.discriminator()
@@ -205,9 +205,9 @@ class KGAN(object):
             # Train true and false sets with correct labels and train discriminator
             #d_loss=np.zeros(train_rate[0])
             for k in range(train_rate[0]):
-                y = np.random.binomial(1,.9,size=[batch_size, 1])
+                y = np.random.binomial(1,.99,size=[batch_size, 1])
                 d_loss_real = self.DM.train_on_batch(images_real, y)
-                y =np.random.binomial(1,.1,size=[batch_size, 1])
+                y =np.random.binomial(1,.01,size=[batch_size, 1])
                 d_loss_fake = self.DM.train_on_batch(images_fake,y)
                 #d_loss += np.add(d_loss_fake,d_loss_real)/2/train_rate[0]
                 d_loss = np.add(d_loss_fake,d_loss_real)/2
