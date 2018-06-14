@@ -5,9 +5,9 @@ import sys, platform
 assert sys.version_info >= (3,3), "KGAN requires Python version >= 3.3. You have "+platform.python_version()
 
 setup(
-    name='KGan',
+    name='kgan',
     version='0.1dev',
-    packages=[],
+    py_modules=['kgan'],
     long_description=open('README.md').read(),
     
 )
