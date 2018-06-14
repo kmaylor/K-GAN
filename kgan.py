@@ -31,7 +31,7 @@ class KGAN(object):
         if load_state:
             try:
             	print('Loading Previous State')
-            	self.load_dcgan()
+            	self.load_state()
             except IOError:
                 print('Previous state not saved, beginning with fresh state.')
 
@@ -124,23 +124,25 @@ class KGAN(object):
         discriminator.trainable=True
         return self.AM
 
-    def save_dcgan(self):
+    def save_state(self):
     	
     	model_type = ['D', 'G']
     	for m in model_type:
     		model = getattr(self, m)
+    		model.save(m+'_model.h5')
     		# serialize model to JSON
-    		with open(m+".json", "w") as f: f.write(model.to_json())
+    		#with open(m+".json", "w") as f: f.write(model.to_json())
     		# serialize weights to HDF5
-    		model.save_weights(m+"_weights.h5")		
+    		#model.save_weights(m+"_weights.h5")		
                         
-    def load_dcgan(self):
+    def load_state(self):
     	model_type = ['D', 'G']
     	for m in model_type:
+    		setattr(self,m,load_model(m+'_model.h5'))
             # load json and create model
-            with open(m+'.json', 'r') as f: setattr(self,m,model_from_json(f.read()))
+            #with open(m+'.json', 'r') as f: setattr(self,m,model_from_json(f.read()))
             # load weights into new model
-            getattr(self, m).load_weights(m+"_weights.h5", by_name=True)
+            #getattr(self, m).load_weights(m+"_weights.h5", by_name=True)
 
     def get_model_memory_usage(batch_size, model):
         ''' Get memory usage of a model during training.
@@ -205,7 +207,7 @@ class KGAN(object):
                 print(log_mesg)
             if save_interval>0:
                 if (i+1)%save_interval==0:
-                    self.save_dcgan()
+                    self.save_state()
                     fn = filename+"_%d.png" % (i+1)
                     self.plot_images(images_real, images_fake, filename=fn, samples=samples)
 
