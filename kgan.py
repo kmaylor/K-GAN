@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import pickle as pk
 from os.path import exists
 from os import makedirs
+import types
 from keras.models import Sequential, load_model, model_from_json
 from keras.layers import Dense, Activation, Flatten, Reshape
 from keras.layers import Conv2D, Conv2DTranspose, Cropping2D, UpSampling2D
@@ -51,7 +52,10 @@ class KGAN(object):
         initial = TruncatedNormal(0,0.02)
         self.D = Sequential(name='Discriminator')
         depth = self.depth
-        depth_scale = self.depth_scale()
+        if isinstance(self.depth_scale,types.FunctionType):
+            depth_scale = self.depth_scale()
+        else:
+            depth_scale = self.depth_scale
         input_shape = (self.img_rows, self.img_cols, self.channel)
         
         self.D.add(Conv2D(depth*depth_scale[0], self.kernels[0], strides=self.strides[0], \
@@ -80,7 +84,11 @@ class KGAN(object):
         initial = TruncatedNormal(0,0.02)
         self.G = Sequential(name='Generator')
         depth = int(self.depth/2)
-        depth_scale = self.depth_scale()[::-1]
+        if isinstance(self.depth_scale,types.FunctionType):
+            depth_scale = self.depth_scale()[::-1]
+        else:
+            depth_scale = self.depth_scale[::-1]
+
         dim1 = self.discriminator().get_layer('Flatten').input_shape[1]
         dim2 = self.discriminator().get_layer('Flatten').input_shape[2]
         
