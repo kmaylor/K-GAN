@@ -41,9 +41,9 @@ class KGAN(object):
         if load_dir != None:
             try:
             	print('Loading Previous State')
-            	self.load_state(load_dir)
+            	self.load_state()
             except IOError:
-                print('State '+load_dir+' not found, begin with fresh state?')
+                print('State '+str(load_dir)+' not found, begin with fresh state?')
 
     def discriminator(self):
         if self.D:
@@ -135,11 +135,11 @@ class KGAN(object):
         return self.AM
 
     def save_state(self):
-        if not exists(self.save_dir): makedirs(self.save_dir)
+        if not exists(str(self.save_dir)): makedirs(str(self.save_dir))
         model_type = ['D', 'G']
         for m in model_type:
             model = getattr(self, m)
-            model.save(self.save_dir+'/'+m+'_model.h5')
+            model.save(str(self.save_dir)+'/'+m+'_model.h5')
     		# serialize model to JSON
     		#with open(m+".json", "w") as f: f.write(model.to_json())
     		# serialize weights to HDF5
@@ -148,7 +148,7 @@ class KGAN(object):
     def load_state(self):
     	model_type = ['D', 'G']
     	for m in model_type:
-    		setattr(self,m,load_model(self.load_dir+'/'+m+'_model.h5'))
+    		setattr(self,m,load_model(str(self.load_dir)+'/'+m+'_model.h5'))
             # load json and create model
             #with open(m+'.json', 'r') as f: setattr(self,m,model_from_json(f.read()))
             # load weights into new model
