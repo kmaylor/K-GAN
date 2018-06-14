@@ -41,9 +41,9 @@ class KGAN(object):
         if load_dir != None:
             try:
             	print('Loading Previous State')
-            	self.load_state(load_state)
+            	self.load_state(load_dir)
             except IOError:
-                print('State '+load_state+' not found, begin with fresh state?')
+                print('State '+load_dir+' not found, begin with fresh state?')
 
     def discriminator(self):
         if self.D:
