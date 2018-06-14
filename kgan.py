@@ -4,6 +4,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pickle as pk
+from os.path import exists
+from os import makedirs
 from keras.models import Sequential, load_model, model_from_json
 from keras.layers import Dense, Activation, Flatten, Reshape
 from keras.layers import Conv2D, Conv2DTranspose, Cropping2D, UpSampling2D
@@ -12,10 +14,17 @@ from keras.layers import BatchNormalization
 from keras.optimizers import Adam
 from keras.backend import log, count_params
 from keras.initializers import TruncatedNormal
-
 class KGAN(object):
-    def __init__(self, img_rows, img_cols, channel=1, load_state =False ):
-
+    def __init__(self, img_rows, img_cols, channel=1,
+                    load_dir =None,
+                    save_dir = '',
+                    kernels = [4,4,4,4,2],
+                    strides = [2,2,2,1,1],
+                    depth = 64,
+                    depth_scale = None,
+                    ):
+        self.save_dir = save_dir
+        self.load_dir = load_dir
         self.input_dim = 64
         self.img_rows = img_rows
         self.img_cols = img_cols
@@ -27,13 +36,14 @@ class KGAN(object):
         self.kernels = [15,10,5]
         self.strides = [8,4,2]
         self.depth = 64
-        self.depth_scale = lambda:((2*np.ones(len(self.kernels)))**np.arange(len(self.kernels))).astype('int')
-        if load_state:
+        if depth_scale == None:
+            self.depth_scale = lambda:((2*np.ones(len(self.kernels)))**np.arange(len(self.kernels))).astype('int')
+        if load_dir != None:
             try:
             	print('Loading Previous State')
-            	self.load_state()
+            	self.load_state(load_state)
             except IOError:
-                print('Previous state not saved, beginning with fresh state.')
+                print('State '+load_state+' not found, begin with fresh state?')
 
     def discriminator(self):
         if self.D:
@@ -125,11 +135,11 @@ class KGAN(object):
         return self.AM
 
     def save_state(self):
-    	
-    	model_type = ['D', 'G']
-    	for m in model_type:
-    		model = getattr(self, m)
-    		model.save(m+'_model.h5')
+        if not exists(self.save_dir): makedirs(self.save_dir)
+        model_type = ['D', 'G']
+        for m in model_type:
+            model = getattr(self, m)
+            model.save(self.save_dir+'/'+m+'_model.h5')
     		# serialize model to JSON
     		#with open(m+".json", "w") as f: f.write(model.to_json())
     		# serialize weights to HDF5
@@ -138,7 +148,7 @@ class KGAN(object):
     def load_state(self):
     	model_type = ['D', 'G']
     	for m in model_type:
-    		setattr(self,m,load_model(m+'_model.h5'))
+    		setattr(self,m,load_model(self.load_dir+'/'+m+'_model.h5'))
             # load json and create model
             #with open(m+'.json', 'r') as f: setattr(self,m,model_from_json(f.read()))
             # load weights into new model
