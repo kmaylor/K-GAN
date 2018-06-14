@@ -18,7 +18,7 @@ from keras.initializers import TruncatedNormal
 class KGAN(object):
     def __init__(self, img_rows, img_cols, channel=1,
                     load_dir =None,
-                    save_dir = '',
+                    save_dir = 'Saved_Models/testing',
                     kernels = [4,4,4,4,2],
                     strides = [2,2,2,1,1],
                     depth = 64,
@@ -162,7 +162,7 @@ class KGAN(object):
             # load weights into new model
             #getattr(self, m).load_weights(m+"_weights.h5", by_name=True)
 
-    def get_model_memory_usage(batch_size, model):
+    def get_model_memory_usage(self,batch_size, model):
         ''' Get memory usage of a model during training.
             model = [D,G,DM,AM]
         '''
