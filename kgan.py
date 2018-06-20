@@ -10,11 +10,13 @@ import types
 from keras.models import Sequential, load_model, model_from_json
 from keras.layers import Dense, Activation, Flatten, Reshape
 from keras.layers import Conv2D, Conv2DTranspose, Cropping2D, UpSampling2D
-from keras.layers import LeakyReLU, Dropout
+from keras.layers import LeakyReLU, Dropout, Lambda
 from keras.layers import BatchNormalization
 from keras.optimizers import Adam
-from keras.backend import log, count_params
+from keras.backend import log, count_params, int_shape
 from keras.initializers import TruncatedNormal
+import tensorflow as tf
+from keras import backend as K
 class KGAN(object):
     def __init__(self, img_rows, img_cols, channel=1,
                     load_dir =None,
@@ -81,6 +83,15 @@ class KGAN(object):
     def generator(self):
         if self.G:
             return self.G
+        
+        def UpSampling2DBilinear(stride, **kwargs):
+            def layer(x):
+                input_shape = K.int_shape(x)
+                output_shape = (stride * input_shape[1], stride * input_shape[2])
+                return K.tf.image.resize_images(x, output_shape, align_corners=True,
+                        method = K.tf.image.ResizeMethod.BILINEAR)
+            return Lambda(layer, **kwargs)
+
         initial = TruncatedNormal(0,0.02)
         self.G = Sequential(name='Generator')
         depth = int(self.depth/2)
@@ -97,18 +108,18 @@ class KGAN(object):
                         kernel_initializer=initial, name = 'Dense_G'))
         self.G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G_1'))
         self.G.add(Reshape((dim1, dim2, depth*depth_scale[0]),name='Reshape'))
-        
         for i,ks in enumerate(zip(self.kernels,self.strides)):
-        	self.G.add(BatchNormalization(momentum=0.9, name = 'BN_G%i'%(i+1)))
-        	if i < len(self.kernels)-1:
-        		self.G.add(UpSampling2D(ks[1]))
-        		self.G.add(Conv2DTranspose(depth*depth_scale[i+1], ks[0], strides = 1, padding='same',
+            self.G.add(BatchNormalization(momentum=0.9, name = 'BN_G%i'%(i+1)))
+            if i < len(self.kernels)-1:
+                #self.G.add(UpSampling2D(ks[1]))
+                self.G.add(UpSampling2DBilinear(ks[1],name='BiL_%i'%(i+1)))
+                self.G.add(Conv2DTranspose(depth*depth_scale[i+1], ks[0], strides = 1, padding='same',
         	            kernel_initializer=initial, name = 'ConvTr2D_%i'%(i+1)))
-        		self.G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G%i'%(i+2)))
-        	else:
-        		self.G.add(Conv2DTranspose(1, self.kernels[-1], strides = 1, padding='same',
+                self.G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G%i'%(i+2)))
+            else:
+                self.G.add(Conv2DTranspose(1, self.kernels[-1], strides = 1, padding='same',
         	            kernel_initializer=initial, name = 'ConvTr2D_%i'%(i+1)))
-        		self.G.add(Activation('tanh', name = 'Tanh'))
+                self.G.add(Activation('tanh', name = 'Tanh'))
         
         crop_r = int((self.G.get_layer('Tanh').output_shape[1]-self.img_rows)/2)
         crop_c = int((self.G.get_layer('Tanh').output_shape[2]-self.img_cols)/2)
@@ -116,6 +127,7 @@ class KGAN(object):
         self.G.summary()
         return self.G
 
+    
     def discriminator_model(self):
         if self.DM:
             return self.DM
