@@ -117,6 +117,7 @@ class KGAN(object):
         	            kernel_initializer=initial, name = 'ConvTr2D_%i'%(i+1)))
                 self.G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G%i'%(i+2)))
             else:
+                self.G.add(UpSampling2DBilinear(self.strides[-1],name='BiL_%i'%(i+1)))
                 self.G.add(Conv2DTranspose(1, self.kernels[-1], strides = 1, padding='same',
         	            kernel_initializer=initial, name = 'ConvTr2D_%i'%(i+1)))
                 self.G.add(Activation('tanh', name = 'Tanh'))
@@ -163,7 +164,7 @@ class KGAN(object):
     		# serialize model to JSON
     		#with open(m+".json", "w") as f: f.write(model.to_json())
     		# serialize weights to HDF5
-    		#model.save_weights(m+"_weights.h5")		
+    		#model.save_weights(m+"_weights.h5")
                         
     def load_state(self):
     	model_type = ['D', 'G']
