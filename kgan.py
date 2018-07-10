@@ -7,6 +7,8 @@ import pickle as pk
 from os.path import exists
 from os import makedirs
 import types
+from keras import __version__
+print("This is Keras version = "+__version__)
 from keras.models import Sequential, load_model, model_from_json
 from keras.layers import Dense, Activation, Flatten, Reshape
 from keras.layers import Conv2D, Conv2DTranspose, Cropping2D, UpSampling2D
@@ -15,6 +17,7 @@ from keras.layers import BatchNormalization
 from keras.optimizers import Adam
 from keras.backend import log, count_params, int_shape
 from keras.initializers import TruncatedNormal
+from keras.utils import multi_gpu_model
 import tensorflow as tf
 from keras import backend as K
 class KGAN(object):
@@ -25,7 +28,9 @@ class KGAN(object):
                     strides = [2,2,2,1,1],
                     depth = 64,
                     depth_scale = None,
+                    gpus=1,
                     ):
+        self.gpus = gpus
         self.save_dir = save_dir
         self.load_dir = load_dir
         self.input_dim = 64
@@ -133,10 +138,19 @@ class KGAN(object):
         if self.DM:
             return self.DM
         optimizer = Adam(lr=0.00005,beta_1=0.5, decay=0)
-        self.DM = Sequential(name = 'Discriminator Model')
-        self.DM.add(self.discriminator())
-        self.DM.compile(loss='binary_crossentropy', optimizer=optimizer,\
-            metrics=['binary_accuracy'])
+        if self.gpus <=1:
+            self.DM = Sequential(name = 'Discriminator Model')
+            self.DM.add(self.discriminator())
+            self.DM.compile(loss='binary_crossentropy', optimizer=optimizer,\
+                metrics=['binary_accuracy'])
+        else:
+            with tf.device("/cpu:0"):
+                self.DM = Sequential(name = 'Discriminator_Model')
+                self.DM.add(self.discriminator())
+            self.DM = multi_gpu_model(self.DM,gpus=self.gpus)
+            self.DM.compile(loss='binary_crossentropy', optimizer=optimizer,\
+                    metrics=['binary_accuracy'])
+
         self.DM.summary()
         return self.DM
 
@@ -144,13 +158,25 @@ class KGAN(object):
         if self.AM:
             return self.AM
         optimizer = Adam(lr=0.00005,beta_1=0.5, decay=0)
-        self.AM = Sequential(name = 'Adversarial Model')
-        self.AM.add(self.generator())
-        discriminator =self.discriminator()
-        discriminator.trainable=False
-        self.AM.add(discriminator)
-        self.AM.compile(loss='binary_crossentropy', optimizer=optimizer,\
-            metrics=['binary_accuracy'])
+        if self.gpus <=1:
+            self.AM = Sequential(name = 'Adversarial Model')
+            self.AM.add(self.generator())
+            discriminator =self.discriminator()
+            discriminator.trainable=False
+            self.AM.add(discriminator)
+            self.AM.compile(loss='binary_crossentropy', optimizer=optimizer,\
+                metrics=['binary_accuracy'])
+        else:
+            with tf.device("/cpu:0"):
+                self.AM = Sequential(name = 'Adversarial_Model')
+                self.AM.add(self.generator())
+                discriminator =self.discriminator()
+                discriminator.trainable=False
+                self.AM.add(discriminator)
+            self.AM = multi_gpu_model(self.AM,gpus=self.gpus)
+            self.AM.compile(loss='binary_crossentropy', optimizer=optimizer,\
+                metrics=['binary_accuracy'])
+
         self.AM.summary()
         discriminator.trainable=True
         return self.AM
