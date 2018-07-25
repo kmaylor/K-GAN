@@ -137,7 +137,7 @@ class KGAN(object):
     def discriminator_model(self):
         if self.DM:
             return self.DM
-        optimizer = Adam(lr=0.00005,beta_1=0.5, decay=0)
+        optimizer = Adam(lr=0.0002,beta_1=0.5, decay=0)
         if self.gpus <=1:
             self.DM = Sequential(name = 'Discriminator Model')
             self.DM.add(self.discriminator())
@@ -157,7 +157,7 @@ class KGAN(object):
     def adversarial_model(self):
         if self.AM:
             return self.AM
-        optimizer = Adam(lr=0.00005,beta_1=0.5, decay=0)
+        optimizer = Adam(lr=0.0002,beta_1=0.5, decay=0)
         if self.gpus <=1:
             self.AM = Sequential(name = 'Adversarial Model')
             self.AM.add(self.generator())
@@ -268,15 +268,18 @@ class KGAN(object):
                     fn = filename+"_%d.png" % (i+1)
                     self.plot_images(images_real, images_fake, filename=fn, samples=samples)
 
-    def plot_images(self, real, fake, filename=None, samples=16):
-
+    def plot_images(self, real, fake,seed=True, filename=None, samples=16):
+        if seed:
+            np.random.seed(1)
+            noise = np.random.normal(loc=0., scale=1., size=[16, self.input_dim])
+            fake = self.G.predict(noise)
         images = np.concatenate((fake[:int(samples/2)],real[:int(samples/2)]))
         plt.figure(figsize=(10,10))
         for i in range(images.shape[0]):
             plt.subplot(int(samples**.5), int(samples**.5), i+1)
             image = images[i, :, :, :]
             image = np.reshape(image, [self.img_rows, self.img_cols])
-            plt.imshow(image, cmap='viridis')
+            plt.imshow(image, cmap='viridis',vmin=-1,vmax=1)
             plt.axis('off')
         plt.tight_layout()
         if filename!=None:
