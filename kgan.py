@@ -49,13 +49,13 @@ class KGAN(object):
             self.depth_scale = lambda:((2*np.ones(len(self.kernels)))**np.arange(len(self.kernels))).astype('int')
         if load_dir != None:
             try:
-            	print('Loading Previous State')
-            	self.load_state()
+                print('Loading Previous State')
+                self.load_state()
             except IOError:
                 print('State '+str(load_dir)+' not found, begin with fresh state?')
 
     def discriminator(self):
-    	'''Create the discriminator if it does not already exist'''
+        '''Create the discriminator if it does not already exist'''
         if self.D:
             return self.D
         
@@ -82,7 +82,7 @@ class KGAN(object):
             self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+1)))
             self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+1)))
             self.D.add(Conv2D(depth*depth_scale[i+1], ks[0], strides=ks[1], padding='same', \
-            	        kernel_initializer=initial, name = 'Conv2D_%i'%(i+2)))
+                        kernel_initializer=initial, name = 'Conv2D_%i'%(i+2)))
         
         self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+2)))
         self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+2)))
@@ -96,7 +96,7 @@ class KGAN(object):
         return self.D
 
     def generator(self):
-    	'''Create the generator if it does not already exist'''
+        '''Create the generator if it does not already exist'''
         if self.G:
             return self.G
         
@@ -138,12 +138,12 @@ class KGAN(object):
             if i < len(self.kernels)-1:
                 self.G.add(UpSampling2DBilinear(ks[1],name='BiL_%i'%(i+1)))
                 self.G.add(Conv2DTranspose(depth*depth_scale[i+1], ks[0], strides = 1, padding='same',
-        	            kernel_initializer=initial, name = 'ConvTr2D_%i'%(i+1)))
+                        kernel_initializer=initial, name = 'ConvTr2D_%i'%(i+1)))
                 self.G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G%i'%(i+2)))
             else:
                 self.G.add(UpSampling2DBilinear(self.strides[-1],name='BiL_%i'%(i+1)))
                 self.G.add(Conv2DTranspose(1, self.kernels[-1], strides = 1, padding='same',
-        	            kernel_initializer=initial, name = 'ConvTr2D_%i'%(i+1)))
+                        kernel_initializer=initial, name = 'ConvTr2D_%i'%(i+1)))
                 self.G.add(Activation('tanh', name = 'Tanh'))
         
         # If the output of the last layer is larger than the input for the discriminator crop
@@ -156,8 +156,8 @@ class KGAN(object):
 
     
     def discriminator_model(self):
-    	'''Build and compile the discriminator model from the discriminator. This allows for 
-    	easy saving and reloading of models'''
+        '''Build and compile the discriminator model from the discriminator. This allows for 
+        easy saving and reloading of models'''
         if self.DM:
             return self.DM
         
@@ -182,8 +182,8 @@ class KGAN(object):
         return self.DM
 
     def adversarial_model(self):
-    	'''Build and compile the adversarial model from the discriminator and generator. Stacks the 
-    	discriminator on the generator'''
+        '''Build and compile the adversarial model from the discriminator and generator. Stacks the 
+        discriminator on the generator'''
         if self.AM:
             return self.AM
 
@@ -219,24 +219,24 @@ class KGAN(object):
         return self.AM
 
     def save_state(self):
-    	'''Save only the discriminator and generator DM and AM are re-compiled, allows you to change learning rates
-    	during training and add extra layers (this feature still needs to be added'''
+        '''Save only the discriminator and generator DM and AM are re-compiled, allows you to change learning rates
+        during training and add extra layers (this feature still needs to be added'''
         if not exists(str(self.save_dir)): makedirs(str(self.save_dir))
         model_type = ['D', 'G']
         for m in model_type:
             model = getattr(self, m)
             model.save(str(self.save_dir)+'/'+m+'_model.h5')
-    		# serialize model to JSON
-    		#with open(m+".json", "w") as f: f.write(model.to_json())
-    		# serialize weights to HDF5
-    		#model.save_weights(m+"_weights.h5")
+            # serialize model to JSON
+            #with open(m+".json", "w") as f: f.write(model.to_json())
+            # serialize weights to HDF5
+            #model.save_weights(m+"_weights.h5")
                         
     def load_state(self):
-    	'''Load only the discriminator and generator, DM and AM are re-compiled, allows you to change learning rates
-    	during training and add extra layers (this feature still needs to be added'''
-    	model_type = ['D', 'G']
-    	for m in model_type:
-    		setattr(self,m,load_model(str(self.load_dir)+'/'+m+'_model.h5'))
+        '''Load only the discriminator and generator, DM and AM are re-compiled, allows you to change learning rates
+        during training and add extra layers (this feature still needs to be added'''
+        model_type = ['D', 'G']
+        for m in model_type:
+            setattr(self,m,load_model(str(self.load_dir)+'/'+m+'_model.h5'))
             # load json and create model
             #with open(m+'.json', 'r') as f: setattr(self,m,model_from_json(f.read()))
             # load weights into new model
@@ -304,9 +304,9 @@ class KGAN(object):
             # Create new fake images labels as if they are from the training set
             #a_loss=np.zeros(train_rate[1])
             for j in range(train_rate[1]):
-            	y = np.ones([batch_size, 1])
-            	#a_loss += np.array(self.adversarial.train_on_batch(noise, y))/train_rate[1]
-            	a_loss = np.array(self.AM.train_on_batch(noise, y))
+                y = np.ones([batch_size, 1])
+                #a_loss += np.array(self.adversarial.train_on_batch(noise, y))/train_rate[1]
+                a_loss = np.array(self.AM.train_on_batch(noise, y))
             # Generate log messages
             log_mesg = "%d: [D loss: %f, acc: %f]" % (i, d_loss[0], d_loss[1])
             log_mesg = "%s  [A loss: %f, acc: %f]" % (log_mesg, a_loss[0], a_loss[1])
@@ -319,12 +319,12 @@ class KGAN(object):
                     self.plot_images(fake=images_fake, real=images_real, filename=fn, samples=samples)
 
     def plot_images(self, fake=None, real=None, seed=None, filename=None, samples=16):
-    	'''plot samples from the generator or the training data
-    	fake: List of images from the generator overridden if seed != None
-    	real: List of images from the training set
-    	seed: Fix value to always produce the same images from the generator
-    	filename: Path to where to save images
-    	samples: Number of images to plot'''
+        '''plot samples from the generator or the training data
+        fake: List of images from the generator overridden if seed != None
+        real: List of images from the training set
+        seed: Fix value to always produce the same images from the generator
+        filename: Path to where to save images
+        samples: Number of images to plot'''
         if seed!=None:
             np.random.seed(seed)
             noise = np.random.normal(loc=0., scale=1., size=[16, self.input_dim])
@@ -332,7 +332,7 @@ class KGAN(object):
         if real!=None:
             images = np.concatenate((fake[:int(samples/2)],real[:int(samples/2)]))
         else:
-        	images = fake
+            images = fake
         plt.figure(figsize=(10,10))
         for i in range(images.shape[0]):
             plt.subplot(int(samples**.5), int(samples**.5), i+1)
