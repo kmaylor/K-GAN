@@ -81,6 +81,10 @@ class KGAN(object):
         for i,ks in enumerate(zip(self.kernels[1:],self.strides[1:])):
             self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+1)))
             self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+1)))
+            if i%2==0:
+                self.D.add(Dropout(.1, name = 'DO_D%i'%(i+1)))
+            else:
+                self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+1)))
             self.D.add(Conv2D(depth*depth_scale[i+1], ks[0], strides=ks[1], padding='same', \
                         kernel_initializer=initial, name = 'Conv2D_%i'%(i+2)))
         
@@ -316,7 +320,7 @@ class KGAN(object):
                 if (i+1)%save_interval==0:
                     self.save_state()
                     fn = filename+"_%d.png" % (i+1)
-                    self.plot_images(fake=images_fake, real=images_real, filename=fn, samples=samples)
+                    self.plot_images(fake=images_fake, real=images_real,seed=1, filename=fn, samples=samples)
 
     def plot_images(self, fake=None, real=None, seed=None, filename=None, samples=16):
         '''plot samples from the generator or the training data
