@@ -80,7 +80,7 @@ class KGAN(object):
         # Iterate over layers defined by the number of kernels and strides
         for i,ks in enumerate(zip(self.kernels[1:],self.strides[1:])):
             self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+1)))
-            self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+1)))
+            #self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+1)))
             if i%2==0:
                 self.D.add(Dropout(.1, name = 'DO_D%i'%(i+1)))
             else:
