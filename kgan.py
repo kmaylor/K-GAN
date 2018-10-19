@@ -81,16 +81,20 @@ class KGAN(object):
         for i,ks in enumerate(zip(self.kernels[1:],self.strides[1:])):
             self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+1)))
             #self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+1)))
+            d=i+1#index for dropout
+            b=i+1#index for batchnorm
             if i%2==0:
-                self.D.add(Dropout(.1, name = 'DO_D%i'%(i+1)))
+                self.D.add(Dropout(.1, name = 'DO_D%i'%(d)))
+                d+=1
             else:
-                self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+1)))
+                self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(b)))
+                b+=1
             self.D.add(Conv2D(depth*depth_scale[i+1], ks[0], strides=ks[1], padding='same', \
                         kernel_initializer=initial, name = 'Conv2D_%i'%(i+2)))
         
         self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+2)))
-        self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+2)))
-        
+        #self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+2)))
+        self.D.add(Dropout(.1, name = 'DO_D%i'%(i+2)))
         # Flatten final features and calculate the probability of the input belonging to the same 
         # as the training set
         self.D.add(Flatten(name = 'Flatten'))
@@ -313,7 +317,7 @@ class KGAN(object):
                 a_loss = np.array(self.AM.train_on_batch(noise, y))
             # Generate log messages
             if nan in np.concatenate(d_loss,a_loss):
-                print('Loss is nana')
+                print('Loss is nan')
                 break
             log_mesg = "%d: [D loss: %f, acc: %f]" % (i, d_loss[0], d_loss[1])
             log_mesg = "%s  [A loss: %f, acc: %f]" % (log_mesg, a_loss[0], a_loss[1])
