@@ -316,7 +316,7 @@ class KGAN(object):
                 #a_loss += np.array(self.adversarial.train_on_batch(noise, y))/train_rate[1]
                 a_loss = np.array(self.AM.train_on_batch(noise, y))
             # Generate log messages
-            if nan in np.concatenate(d_loss,a_loss):
+            if float('nan') in np.concatenate(d_loss,a_loss):
                 print('Loss is nan')
                 break
             log_mesg = "%d: [D loss: %f, acc: %f]" % (i, d_loss[0], d_loss[1])
