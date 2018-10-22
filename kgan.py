@@ -20,6 +20,7 @@ from keras.initializers import TruncatedNormal
 from keras.utils import multi_gpu_model
 import tensorflow as tf
 from keras import backend as K
+import os
 
 class KGAN(object):
     def __init__(self, img_rows, img_cols, channel=1,
@@ -84,7 +85,7 @@ class KGAN(object):
             d=i+1#index for dropout
             b=i+1#index for batchnorm
             if i%2==0:
-                self.D.add(Dropout(.1, name = 'DO_D%i'%(d)))
+               # self.D.add(Dropout(.1, name = 'DO_D%i'%(d)))
                 d+=1
             else:
                 self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(b)))
@@ -141,7 +142,8 @@ class KGAN(object):
         self.G.add(Reshape((dim1, dim2, depth*depth_scale[0]),name='Reshape'))
 
         # Iterate over layers defined by the number of kernels and strides
-        for i,ks in enumerate(zip(self.kernels,self.strides)):
+        #Use larger kernels with larger feature maps
+        for i,ks in enumerate(zip(self.kernels[::-1],self.strides)):
             self.G.add(BatchNormalization(momentum=0.9, name = 'BN_G%i'%(i+1)))
             if i < len(self.kernels)-1:
                 self.G.add(UpSampling2DBilinear(ks[1],name='BiL_%i'%(i+1)))
@@ -288,10 +290,14 @@ class KGAN(object):
         self.G=self.generator()
         self.DM=self.discriminator_model()
         self.AM=self.adversarial_model()
-
+        loss_acc={'Discriminator':[],'Adversarial':[]}
+        with open(filename+'stats.txt','wb') as f:
+                            pk.dump(loss_acc,f)
+ 
         print('Training Beginning')
         
         for i in range(train_steps):
+            
             # First train the discriminator with correct labels
             # Randomly select batch from training samples
             images_real = x_train[np.random.randint(0,
@@ -319,6 +325,8 @@ class KGAN(object):
             if np.isnan(np.sum(d_loss+a_loss)):
                 print('Loss is nan')
                 break
+            loss_acc['Discriminator'].append(d_loss)
+            loss_acc['Adversarial'].append(a_loss)
             log_mesg = "%d: [D loss: %f, acc: %f]" % (i, d_loss[0], d_loss[1])
             log_mesg = "%s  [A loss: %f, acc: %f]" % (log_mesg, a_loss[0], a_loss[1])
             if i%verbose==0:
@@ -328,6 +336,33 @@ class KGAN(object):
                     self.save_state()
                     fn = filename+"_%d.png" % (i+1)
                     self.plot_images(fake=images_fake, real=images_real,seed=1, filename=fn, samples=samples)
+                    with open(filename+'stats.txt','rb') as f:
+                        old=pk.load(f)
+                        for k in old.keys():
+                            old[k].extend(loss_acc[k])
+                    with open(filename+'stats.txt','wb') as f:
+                        pk.dump(old,f)
+                    loss_acc={'Discriminator':[],'Adversarial':[]}
+                    self.plot_stats(filename)
+
+    def plot_stats(self, filename):
+        with open(filename+'stats.txt','rb') as f:
+            stats=pk.load(f)
+            d_loss,d_acc=zip(*stats['Discriminator'])
+            a_loss,a_acc=zip(*stats['Adversarial'])
+        plt.figure(figsize=(10,5))
+        plt.subplot(2,1,1)
+        plt.plot(d_loss,'b-',label='Discriminator')
+        plt.plot(a_loss,'o--',label='Adversarial')
+        plt.title('Loss')
+        plt.subplot(2,1,2)
+        plt.plot(d_acc,'b-',label='Discriminator')
+        plt.plot(a_acc,'o--',label='Adversarial')
+        plt.title('Accuracy')
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(filename+'stats_plots')
+
 
     def plot_images(self, fake=None, real=None, seed=None, filename=None, samples=16):
         '''plot samples from the generator or the training data
