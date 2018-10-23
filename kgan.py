@@ -352,8 +352,8 @@ class KGAN(object):
             a_loss,a_acc=zip(*stats['Adversarial'])
         plt.figure(figsize=(10,5))
         plt.subplot(2,1,1)
-        plt.plot(d_loss,'b-',label='Discriminator')
-        plt.plot(a_loss,'o--',label='Adversarial')
+        plt.plot(d_loss,'-',label='Discriminator')
+        plt.plot(a_loss,'--',label='Adversarial')
         plt.title('Loss')
         plt.subplot(2,1,2)
         plt.plot(d_acc,'b-',label='Discriminator')
@@ -364,7 +364,7 @@ class KGAN(object):
         plt.savefig(filename+'stats_plots')
 
 
-    def plot_images(self, fake=None, real=None, seed=None, filename=None, samples=16):
+    def plot_images(self, fake=None, real=[], seed=None, filename=None, samples=16):
         '''plot samples from the generator or the training data
         fake: List of images from the generator overridden if seed != None
         real: List of images from the training set
@@ -375,7 +375,7 @@ class KGAN(object):
             np.random.seed(seed)
             noise = np.random.normal(loc=0., scale=1., size=[16, self.input_dim])
             fake = self.G.predict(noise)
-        if real!=None:
+        if real[0]!=None:
             images = np.concatenate((fake[:int(samples/2)],real[:int(samples/2)]))
         else:
             images = fake
