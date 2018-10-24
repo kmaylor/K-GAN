@@ -143,7 +143,7 @@ class KGAN(object):
 
         # Iterate over layers defined by the number of kernels and strides
         #Use larger kernels with larger feature maps
-        for i,ks in enumerate(zip(self.kernels[::-1],self.strides)):
+        for i,ks in enumerate(zip(self.kernels,self.strides)):
             self.G.add(BatchNormalization(momentum=0.9, name = 'BN_G%i'%(i+1)))
             if i < len(self.kernels)-1:
                 self.G.add(UpSampling2DBilinear(ks[1],name='BiL_%i'%(i+1)))
@@ -356,15 +356,15 @@ class KGAN(object):
         plt.plot(a_loss,'--',label='Adversarial')
         plt.title('Loss')
         plt.subplot(2,1,2)
-        plt.plot(d_acc,'b-',label='Discriminator')
-        plt.plot(a_acc,'o--',label='Adversarial')
+        plt.plot(d_acc,'-',label='Discriminator')
+        plt.plot(a_acc,'--',label='Adversarial')
         plt.title('Accuracy')
         plt.legend()
         plt.tight_layout()
         plt.savefig(filename+'stats_plots')
 
 
-    def plot_images(self, fake=None, real=[], seed=None, filename=None, samples=16):
+    def plot_images(self, fake=None, real=None, seed=None, filename=None, samples=16):
         '''plot samples from the generator or the training data
         fake: List of images from the generator overridden if seed != None
         real: List of images from the training set
@@ -375,7 +375,7 @@ class KGAN(object):
             np.random.seed(seed)
             noise = np.random.normal(loc=0., scale=1., size=[16, self.input_dim])
             fake = self.G.predict(noise)
-        if real[0]!=None:
+        if real is not None:
             images = np.concatenate((fake[:int(samples/2)],real[:int(samples/2)]))
         else:
             images = fake
