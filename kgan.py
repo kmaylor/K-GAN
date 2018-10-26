@@ -317,10 +317,11 @@ class KGAN(object):
             # Now train the adversarial network
             # Create new fake images labels as if they are from the training set
             #a_loss=np.zeros(train_rate[1])
+            a_loss=[0,0]
             for j in range(train_rate[1]):
                 y = np.ones([batch_size, 1])
                 noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.input_dim])
-                a_loss += np.array(self.adversarial.train_on_batch(noise, y))/np.max([1,train_rate[1]])
+                a_loss += np.array(self.AM.train_on_batch(noise, y))/np.max([1,train_rate[1]])
            
             # Generate log messages
             if np.isnan(np.sum(d_loss+a_loss)):
