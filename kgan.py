@@ -319,8 +319,9 @@ class KGAN(object):
             #a_loss=np.zeros(train_rate[1])
             for j in range(train_rate[1]):
                 y = np.ones([batch_size, 1])
-                #a_loss += np.array(self.adversarial.train_on_batch(noise, y))/train_rate[1]
-                a_loss = np.array(self.AM.train_on_batch(noise, y))
+                noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.input_dim])
+                a_loss += np.array(self.adversarial.train_on_batch(noise, y))/np.max([1,train_rate[1]])
+           
             # Generate log messages
             if np.isnan(np.sum(d_loss+a_loss)):
                 print('Loss is nan')
