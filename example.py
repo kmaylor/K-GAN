@@ -1,6 +1,6 @@
 from kgan import KGAN
 import numpy as np
-from tensorflow.examples.tutorials.mnist import input_data
+from keras.datasets import mnist
 
 class MNISTGAN(object):
     def __init__(self):
@@ -12,8 +12,7 @@ class MNISTGAN(object):
         self.img_cols = 28
         self.channel = 1
 
-        self.x_train = input_data.read_data_sets("mnist",\
-        	one_hot=True).train.images
+        (self.x_train, _), (_, _) = mnist.load_data()
         self.x_train = self.x_train.reshape(-1, self.img_rows,\
         	self.img_cols, 1).astype(np.float32)
 
