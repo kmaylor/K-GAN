@@ -14,15 +14,15 @@ class MNISTGAN(object):
 
         (self.x_train, _), (_, _) = mnist.load_data()
         self.x_train = self.x_train.reshape(-1, self.img_rows,\
-        	self.img_cols, 1).astype(np.float32)
+        	self.img_cols, 1)/255*2-1
 
         self.KGAN = KGAN(img_rows=self.img_rows, img_cols=self.img_cols, 
-                            load_dir='Saved_Models/example', save_dir = 'Saved_Models/example')
+                            load_dir=None, save_dir = 'Saved_Models/example')
         self.KGAN.strides = strides
         self.KGAN.kernels = kernels
 
     def train(self):
-        self.KGAN.train(self.x_train, 'MNIST_sims',train_steps=8000, save_interval=100, verbose = 10)
+        self.KGAN.train(self.x_train, 'MNIST_sims',train_steps=8000, save_interval=500, verbose = 100)
 
 t = MNISTGAN()
 t.train()

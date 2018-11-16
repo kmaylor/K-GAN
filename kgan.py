@@ -16,7 +16,7 @@ from keras.layers import LeakyReLU, Dropout, Lambda
 from keras.layers import BatchNormalization
 from keras.optimizers import Adam
 from keras.backend import log, count_params, int_shape
-from keras.initializers import TruncatedNormal
+from keras.initializers import TruncatedNormal, Zeros, Identity
 from keras.utils import multi_gpu_model
 import tensorflow as tf
 from keras import backend as K
@@ -62,6 +62,7 @@ class KGAN(object):
         
         #initialize weights from normal distribution with 1-sigma cutoff
         initial = TruncatedNormal(0,0.02)
+        bias_initial = Zeros()
 
         # depth*scale_depth give the number of features for each layer
         depth = self.depth
@@ -76,7 +77,7 @@ class KGAN(object):
         self.D = Sequential(name='Discriminator')
         # First layer of discriminator i a convolution, minimum of two convolutional layers
         self.D.add(Conv2D(depth*depth_scale[0], self.kernels[0], strides=self.strides[0], \
-                    input_shape=input_shape, padding='same', kernel_initializer=initial, name = 'Conv2D_1'))
+                    input_shape=input_shape, padding='same', kernel_initializer=initial, bias_initializer=bias_initial, name = 'Conv2D_1'))
         
         # Iterate over layers defined by the number of kernels and strides
         for i,ks in enumerate(zip(self.kernels[1:],self.strides[1:])):
@@ -85,21 +86,21 @@ class KGAN(object):
             d=i+1#index for dropout
             b=i+1#index for batchnorm
             if i%2==0:
-               # self.D.add(Dropout(.1, name = 'DO_D%i'%(d)))
+                self.D.add(Dropout(.2, name = 'DO_D%i'%(d)))
                 d+=1
-            else:
-                self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(b)))
-                b+=1
+#             else:
+#                 self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(b)))
+#                 b+=1
             self.D.add(Conv2D(depth*depth_scale[i+1], ks[0], strides=ks[1], padding='same', \
-                        kernel_initializer=initial, name = 'Conv2D_%i'%(i+2)))
+                        kernel_initializer=initial,bias_initializer=bias_initial, name = 'Conv2D_D%i'%(i+2)))
         
         self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+2)))
         #self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+2)))
-        self.D.add(Dropout(.1, name = 'DO_D%i'%(i+2)))
+        self.D.add(Dropout(.2, name = 'DO_D%i'%(i+2)))
         # Flatten final features and calculate the probability of the input belonging to the same 
         # as the training set
         self.D.add(Flatten(name = 'Flatten'))
-        self.D.add(Dense(1, kernel_initializer=initial, name = 'Dense_D'))
+        self.D.add(Dense(1, kernel_initializer=initial,bias_initializer=bias_initial, name = 'Dense_D'))
         self.D.add(Activation('sigmoid', name = 'Sigmoid'))
         self.D.summary()
         return self.D
@@ -109,17 +110,9 @@ class KGAN(object):
         if self.G:
             return self.G
         
-        # Define the bi-linear upsampling layer using resize_images imported from tensorflow
-        def UpSampling2DBilinear(stride, **kwargs):
-            def layer(x):
-                input_shape = K.int_shape(x)
-                output_shape = (stride * input_shape[1], stride * input_shape[2])
-                return K.tf.image.resize_images(x, output_shape, align_corners=True,
-                        method = K.tf.image.ResizeMethod.BILINEAR)
-            return Lambda(layer, **kwargs)
-        
         #initialize weights from normal distribution with 1-sigma cutoff
         initial = TruncatedNormal(0,0.02)
+        bias_initial = Zeros()
         
         # depth/2*scale_depth give the number of features for each layer
         depth = int(self.depth/2)
@@ -137,8 +130,8 @@ class KGAN(object):
         self.G = Sequential(name='Generator')
         # First layer of generator is densely connected
         self.G.add(Dense(dim1*dim2*depth*depth_scale[0], input_dim=self.input_dim,
-                        kernel_initializer=initial, name = 'Dense_G'))
-        self.G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G_1'))
+                        kernel_initializer=initial,bias_initializer=bias_initial, name = 'Dense_G'))
+        self.G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G1'))
         self.G.add(Reshape((dim1, dim2, depth*depth_scale[0]),name='Reshape'))
 
         # Iterate over layers defined by the number of kernels and strides
@@ -146,14 +139,14 @@ class KGAN(object):
         for i,ks in enumerate(zip(self.kernels,self.strides)):
             self.G.add(BatchNormalization(momentum=0.9, name = 'BN_G%i'%(i+1)))
             if i < len(self.kernels)-1:
-                self.G.add(UpSampling2DBilinear(ks[1],name='BiL_%i'%(i+1)))
-                self.G.add(Conv2DTranspose(depth*depth_scale[i+1], ks[0], strides = 1, padding='same',
-                        kernel_initializer=initial, name = 'ConvTr2D_%i'%(i+1)))
+                self.G.add(UpSampling2D(ks[1],interpolation='bilinear',name='UpSample_%i'%(i+1)))
+                self.G.add(Conv2D(depth*depth_scale[i+1], ks[0], strides = 1, padding='same',
+                        kernel_initializer=initial,bias_initializer=bias_initial, name = 'Conv2D_G%i'%(i+1)))
                 self.G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G%i'%(i+2)))
             else:
-                self.G.add(UpSampling2DBilinear(self.strides[-1],name='BiL_%i'%(i+1)))
-                self.G.add(Conv2DTranspose(1, self.kernels[-1], strides = 1, padding='same',
-                        kernel_initializer=initial, name = 'ConvTr2D_%i'%(i+1)))
+                self.G.add(UpSampling2D(self.strides[-1],interpolation='bilinear',name='UpSample_%i'%(i+1)))
+                self.G.add(Conv2D(1, self.kernels[-1], strides = 1, padding='same',
+                        kernel_initializer=initial,bias_initializer=bias_initial, name = 'Conv2D_G%i'%(i+1)))
                 self.G.add(Activation('tanh', name = 'Tanh'))
         
         # If the output of the last layer is larger than the input for the discriminator crop
@@ -293,7 +286,7 @@ class KGAN(object):
         loss_acc={'Discriminator':[],'Adversarial':[]}
         with open(filename+'stats.txt','wb') as f:
                             pk.dump(loss_acc,f)
- 
+        
         print('Training Beginning')
         
         for i in range(train_steps):
@@ -308,21 +301,21 @@ class KGAN(object):
             # Train true and false sets with correct labels and train discriminator
             #d_loss=np.zeros(train_rate[0])
             for k in range(train_rate[0]):
-                y = np.random.binomial(1,.99,size=[batch_size, 1])
+                y = np.random.binomial(1,.9999,size=[batch_size, 1])
                 d_loss_real = self.DM.train_on_batch(images_real, y)
-                y =np.random.binomial(1,.01,size=[batch_size, 1])
+                y =np.random.binomial(1,.0001,size=[batch_size, 1])
                 d_loss_fake = self.DM.train_on_batch(images_fake,y)
                 #d_loss += np.add(d_loss_fake,d_loss_real)/2/train_rate[0]
                 d_loss = np.add(d_loss_fake,d_loss_real)/2
             # Now train the adversarial network
             # Create new fake images labels as if they are from the training set
             #a_loss=np.zeros(train_rate[1])
-            a_loss=[0,0]
+            a_loss=np.zeros(train_rate[1])#[0,0]
             for j in range(train_rate[1]):
                 y = np.ones([batch_size, 1])
                 noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.input_dim])
                 a_loss += np.array(self.AM.train_on_batch(noise, y))/np.max([1,train_rate[1]])
-           
+            
             # Generate log messages
             if np.isnan(np.sum(d_loss+a_loss)):
                 print('Loss is nan')
@@ -337,7 +330,7 @@ class KGAN(object):
                 if (i+1)%save_interval==0:
                     self.save_state()
                     fn = filename+"_%d.png" % (i+1)
-                    self.plot_images(fake=images_fake, real=images_real,seed=1, filename=fn, samples=samples)
+                    self.plot_images(fake=images_fake, real=images_real,seed=None, filename=fn, samples=samples)
                     with open(filename+'stats.txt','rb') as f:
                         old=pk.load(f)
                         for k in old.keys():
@@ -386,7 +379,7 @@ class KGAN(object):
             plt.subplot(int(samples**.5), int(samples**.5), i+1)
             image = images[i, :, :, :]
             image = np.reshape(image, [self.img_rows, self.img_cols])
-            plt.imshow(image, cmap='viridis',vmin=-1,vmax=1)
+            plt.imshow(image, cmap='viridis')#,vmin=-1,vmax=1)
             plt.axis('off')
         plt.tight_layout()
         if filename!=None:
@@ -399,4 +392,11 @@ class KGAN(object):
 
     
             
-    
+    #         # Define the bi-linear upsampling layer using resize_images imported from tensorflow
+#         def UpSampling2DBilinear(stride, **kwargs):
+#             def layer(x):
+#                 input_shape = K.int_shape(x)
+#                 output_shape = (stride * input_shape[1], stride * input_shape[2])
+#                 return K.tf.image.resize_images(x, output_shape, align_corners=True,
+#                         method = K.tf.image.ResizeMethod.BILINEAR)
+#             return Lambda(layer, **kwargs)
