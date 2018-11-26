@@ -115,7 +115,7 @@ class KGAN(object):
         bias_initial = Zeros()
         
         # depth/2*scale_depth give the number of features for each layer
-        depth = int(self.depth/2)
+        depth = self.depth
         if isinstance(self.depth_scale,types.FunctionType):
             depth_scale = self.depth_scale()[::-1]
         else:
