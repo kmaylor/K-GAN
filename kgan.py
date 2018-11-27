@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import pickle as pk
+import json
 from os.path import exists
 from os import makedirs
 import types
@@ -332,11 +332,11 @@ class KGAN(object):
                     fn = filename+"_%d.png" % (i+1)
                     self.plot_images(fake=images_fake, real=images_real,seed=None, filename=fn, samples=samples)
                     with open(filename+'stats.txt','rb') as f:
-                        old=pk.load(f)
+                        old=json.load(f)
                         for k in old.keys():
                             old[k].extend(loss_acc[k])
                     with open(filename+'stats.txt','wb') as f:
-                        pk.dump(old,f)
+                        json.dump(old,f)
                     loss_acc={'Discriminator':[],'Adversarial':[]}
                     self.plot_stats(filename)
 
