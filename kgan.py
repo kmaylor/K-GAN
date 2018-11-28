@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import json
+import pickle as pk
 from os.path import exists
 from os import makedirs
 import types
@@ -21,6 +21,7 @@ from keras.utils import multi_gpu_model
 import tensorflow as tf
 from keras import backend as K
 import os
+
 
 class KGAN(object):
     def __init__(self, img_rows, img_cols, channel=1,
@@ -82,21 +83,12 @@ class KGAN(object):
         # Iterate over layers defined by the number of kernels and strides
         for i,ks in enumerate(zip(self.kernels[1:],self.strides[1:])):
             self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+1)))
-            #self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+1)))
-            d=i+1#index for dropout
-            b=i+1#index for batchnorm
-            if i%2==0:
-                self.D.add(Dropout(.2, name = 'DO_D%i'%(d)))
-                d+=1
-#             else:
-#                 self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(b)))
-#                 b+=1
+            self.D.add(Dropout(.1, name = 'DO_D%i'%(i+1)))
             self.D.add(Conv2D(depth*depth_scale[i+1], ks[0], strides=ks[1], padding='same', \
                         kernel_initializer=initial,bias_initializer=bias_initial, name = 'Conv2D_D%i'%(i+2)))
         
         self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+2)))
-        #self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+2)))
-        self.D.add(Dropout(.2, name = 'DO_D%i'%(i+2)))
+        self.D.add(Dropout(.1, name = 'DO_D%i'%(i+2)))
         # Flatten final features and calculate the probability of the input belonging to the same 
         # as the training set
         self.D.add(Flatten(name = 'Flatten'))
@@ -266,7 +258,7 @@ class KGAN(object):
         gbytes = np.round(total_memory / (1024.0 ** 3), 3)
         return gbytes
     
-    def train(self, x_train, filename, train_rate=(1,2),
+    def train(self, x_train, filename, train_rate=(1,1),
                     train_steps=2000, batch_size=32,
                     save_interval=100, verbose = 10,
                     samples=16):
@@ -285,7 +277,7 @@ class KGAN(object):
         self.AM=self.adversarial_model()
         loss_acc={'Discriminator':[],'Adversarial':[]}
         with open(filename+'stats.txt','wb') as f:
-                            pk.dump(loss_acc,f)
+            pk.dump(loss_acc,f)
         
         print('Training Beginning')
         
@@ -301,16 +293,16 @@ class KGAN(object):
             # Train true and false sets with correct labels and train discriminator
             #d_loss=np.zeros(train_rate[0])
             for k in range(train_rate[0]):
-                y = np.random.binomial(1,.9999,size=[batch_size, 1])
+                y = np.random.binomial(1,.9,size=[batch_size, 1])
                 d_loss_real = self.DM.train_on_batch(images_real, y)
-                y =np.random.binomial(1,.0001,size=[batch_size, 1])
+                y =np.random.binomial(1,.1,size=[batch_size, 1])
                 d_loss_fake = self.DM.train_on_batch(images_fake,y)
                 #d_loss += np.add(d_loss_fake,d_loss_real)/2/train_rate[0]
                 d_loss = np.add(d_loss_fake,d_loss_real)/2
             # Now train the adversarial network
             # Create new fake images labels as if they are from the training set
             #a_loss=np.zeros(train_rate[1])
-            a_loss=np.zeros(train_rate[1])#[0,0]
+            a_loss=np.zeros(2)#[0,0]
             for j in range(train_rate[1]):
                 y = np.ones([batch_size, 1])
                 noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.input_dim])
@@ -332,11 +324,11 @@ class KGAN(object):
                     fn = filename+"_%d.png" % (i+1)
                     self.plot_images(fake=images_fake, real=images_real,seed=None, filename=fn, samples=samples)
                     with open(filename+'stats.txt','rb') as f:
-                        old=json.load(f)
+                        old=pk.load(f)
                         for k in old.keys():
                             old[k].extend(loss_acc[k])
                     with open(filename+'stats.txt','wb') as f:
-                        json.dump(old,f)
+                        pk.dump(old,f)
                     loss_acc={'Discriminator':[],'Adversarial':[]}
                     self.plot_stats(filename)
 
