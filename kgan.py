@@ -36,7 +36,7 @@ class KGAN(object):
         self.gpus = gpus
         self.save_dir = save_dir
         self.load_dir = load_dir
-        self.input_dim = 100
+        self.input_dim = 64
         self.img_rows = img_rows
         self.img_cols = img_cols
         self.channel = channel
