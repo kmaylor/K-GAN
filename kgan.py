@@ -11,7 +11,7 @@ from keras import __version__
 print("This is Keras version = "+__version__)
 from keras.models import Sequential, load_model, model_from_json
 from keras.layers import Dense, Activation, Flatten, Reshape
-from keras.layers import Conv2D, Conv2DTranspose, Cropping2D, UpSampling2D
+from keras.layers import Conv2D, Conv2DTranspose, Cropping2D#, UpSampling2D
 from keras.layers import LeakyReLU, Dropout, Lambda
 from keras.layers import BatchNormalization
 from keras.optimizers import Adam
@@ -101,7 +101,14 @@ class KGAN(object):
         '''Create the generator if it does not already exist'''
         if self.G:
             return self.G
-        
+            # Define the bi-linear upsampling layer using resize_images imported from tensorflow
+        def UpSampling2D(stride, **kwargs):
+            def layer(x):
+                input_shape = K.int_shape(x)
+                output_shape = (stride * input_shape[1], stride * input_shape[2])
+                return K.tf.image.resize_images(x, output_shape, align_corners=True,
+                        method = K.tf.image.ResizeMethod.BILINEAR)
+            return Lambda(layer, **kwargs)
         #initialize weights from normal distribution with 1-sigma cutoff
         initial = TruncatedNormal(0,0.002)
         bias_initial = Zeros()
@@ -131,12 +138,12 @@ class KGAN(object):
         for i,ks in enumerate(zip(self.kernels,self.strides)):
             self.G.add(BatchNormalization(momentum=0.9, name = 'BN_G%i'%(i+1)))
             if i < len(self.kernels)-1:
-                self.G.add(UpSampling2D(ks[1],interpolation='bilinear',name='UpSample_%i'%(i+1)))
+                self.G.add(UpSampling2D(ks[1],name='UpSample_%i'%(i+1)))
                 self.G.add(Conv2D(depth*depth_scale[i+1], ks[0], strides = 1, padding='same',
                         kernel_initializer=initial,bias_initializer=bias_initial, name = 'Conv2D_G%i'%(i+1)))
                 self.G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G%i'%(i+2)))
             else:
-                self.G.add(UpSampling2D(self.strides[-1],interpolation='bilinear',name='UpSample_%i'%(i+1)))
+                self.G.add(UpSampling2D(self.strides[-1],name='UpSample_%i'%(i+1)))
                 self.G.add(Conv2D(1, self.kernels[-1], strides = 1, padding='same',
                         kernel_initializer=initial,bias_initializer=bias_initial, name = 'Conv2D_G%i'%(i+1)))
                 self.G.add(Activation('tanh', name = 'Tanh'))
@@ -384,11 +391,4 @@ class KGAN(object):
 
     
             
-    #         # Define the bi-linear upsampling layer using resize_images imported from tensorflow
-#         def UpSampling2DBilinear(stride, **kwargs):
-#             def layer(x):
-#                 input_shape = K.int_shape(x)
-#                 output_shape = (stride * input_shape[1], stride * input_shape[2])
-#                 return K.tf.image.resize_images(x, output_shape, align_corners=True,
-#                         method = K.tf.image.ResizeMethod.BILINEAR)
-#             return Lambda(layer, **kwargs)
+        
