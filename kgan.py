@@ -62,7 +62,7 @@ class KGAN(object):
             return self.D
         
         #initialize weights from normal distribution with 1-sigma cutoff
-        initial = TruncatedNormal(0,0.0002)
+        initial = TruncatedNormal(0,0.002)
         bias_initial = Zeros()
 
         # depth*scale_depth give the number of features for each layer
@@ -103,7 +103,7 @@ class KGAN(object):
             return self.G
         
         #initialize weights from normal distribution with 1-sigma cutoff
-        initial = TruncatedNormal(0,0.0002)
+        initial = TruncatedNormal(0,0.002)
         bias_initial = Zeros()
         
         # depth/2*scale_depth give the number of features for each layer
