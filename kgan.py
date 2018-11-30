@@ -12,7 +12,7 @@ print("This is Keras version = "+__version__)
 from keras.models import Sequential, load_model, model_from_json
 from keras.layers import Dense, Activation, Flatten, Reshape
 from keras.layers import Conv2D, Conv2DTranspose, Cropping2D#, UpSampling2D
-from keras.layers import LeakyReLU, Dropout, Lambda
+from keras.layers import LeakyReLU, Dropout, Lambda, ReLU
 from keras.layers import BatchNormalization
 from keras.optimizers import Adam
 from keras.backend import log, count_params, int_shape
@@ -83,12 +83,15 @@ class KGAN(object):
         # Iterate over layers defined by the number of kernels and strides
         for i,ks in enumerate(zip(self.kernels[1:],self.strides[1:])):
             self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+1)))
-            self.D.add(Dropout(.1, name = 'DO_D%i'%(i+1)))
+            #self.D.add(Dropout(.1, name = 'DO_D%i'%(i+1)))
+            self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+1)))
             self.D.add(Conv2D(depth*depth_scale[i+1], ks[0], strides=ks[1], padding='same', \
                         kernel_initializer=initial,bias_initializer=bias_initial, name = 'Conv2D_D%i'%(i+2)))
         
         self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+2)))
-        self.D.add(Dropout(.1, name = 'DO_D%i'%(i+2)))
+        
+        self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+2)))
+        self.D.add(Dropout(.6, name = 'DO_D%i'%(i+2)))
         # Flatten final features and calculate the probability of the input belonging to the same 
         # as the training set
         self.D.add(Flatten(name = 'Flatten'))
@@ -130,7 +133,7 @@ class KGAN(object):
         # First layer of generator is densely connected
         self.G.add(Dense(dim1*dim2*depth*depth_scale[0], input_dim=self.input_dim,
                         kernel_initializer=initial,bias_initializer=bias_initial, name = 'Dense_G'))
-        self.G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G1'))
+        self.G.add(ReLU( name = 'LRelu_G1'))
         self.G.add(Reshape((dim1, dim2, depth*depth_scale[0]),name='Reshape'))
 
         # Iterate over layers defined by the number of kernels and strides
@@ -141,7 +144,7 @@ class KGAN(object):
                 self.G.add(UpSampling2D(ks[1],name='UpSample_%i'%(i+1)))
                 self.G.add(Conv2D(depth*depth_scale[i+1], ks[0], strides = 1, padding='same',
                         kernel_initializer=initial,bias_initializer=bias_initial, name = 'Conv2D_G%i'%(i+1)))
-                self.G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G%i'%(i+2)))
+                self.G.add(ReLU( name = 'LRelu_G%i'%(i+2)))
             else:
                 self.G.add(UpSampling2D(self.strides[-1],name='UpSample_%i'%(i+1)))
                 self.G.add(Conv2D(1, self.kernels[-1], strides = 1, padding='same',
