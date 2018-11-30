@@ -83,12 +83,14 @@ class KGAN(object):
         # Iterate over layers defined by the number of kernels and strides
         for i,ks in enumerate(zip(self.kernels[1:],self.strides[1:])):
             self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+1)))
-            self.D.add(Dropout(.1, name = 'DO_D%i'%(i+1)))
+            #self.D.add(Dropout(.1, name = 'DO_D%i'%(i+1)))
+            self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+1)))
             self.D.add(Conv2D(depth*depth_scale[i+1], ks[0], strides=ks[1], padding='same', \
                         kernel_initializer=initial,bias_initializer=bias_initial, name = 'Conv2D_D%i'%(i+2)))
         
         self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+2)))
-        self.D.add(Dropout(.1, name = 'DO_D%i'%(i+2)))
+        #self.D.add(Dropout(.1, name = 'DO_D%i'%(i+2)))
+        self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+2)))
         # Flatten final features and calculate the probability of the input belonging to the same 
         # as the training set
         self.D.add(Flatten(name = 'Flatten'))
