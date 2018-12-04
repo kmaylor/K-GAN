@@ -46,7 +46,7 @@ class KGAN(object):
         self.AM = None  # adversarial model
         self.kernels = kernels
         self.strides = strides
-        self.depth = 64
+        self.depth = depth
         if depth_scale == None:
             self.depth_scale = lambda:((2*np.ones(len(self.kernels)))**np.arange(len(self.kernels))).astype('int')
         if load_dir != None:
@@ -90,9 +90,9 @@ class KGAN(object):
         
         self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+2)))
             
-        self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+2)))
+        #self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+2)))
         self.D.add(Dropout(.6, name = 'DO_D%i'%(i+2)))
-
+        
         # Flatten final features and calculate the probability of the input belonging to the same 
         # as the training set
         self.D.add(Flatten(name = 'Flatten'))
@@ -134,7 +134,7 @@ class KGAN(object):
         # First layer of generator is densely connected
         self.G.add(Dense(dim1*dim2*depth*depth_scale[0], input_dim=self.input_dim,
                         kernel_initializer=initial,bias_initializer=bias_initial, name = 'Dense_G'))
-        self.G.add(ReLU( name = 'LRelu_G1'))
+        self.G.add(LeakyReLU(alpha=.2, name = 'LRelu_G1'))
         self.G.add(Reshape((dim1, dim2, depth*depth_scale[0]),name='Reshape'))
 
         # Iterate over layers defined by the number of kernels and strides
@@ -145,7 +145,7 @@ class KGAN(object):
                 self.G.add(UpSampling2D(ks[1],name='UpSample_%i'%(i+1)))
                 self.G.add(Conv2D(depth*depth_scale[i+1], ks[0], strides = 1, padding='same',
                         kernel_initializer=initial,bias_initializer=bias_initial, name = 'Conv2D_G%i'%(i+1)))
-                self.G.add(ReLU( name = 'LRelu_G%i'%(i+2)))
+                self.G.add(LeakyReLU(alpha=.2, name = 'LRelu_G%i'%(i+2)))
             else:
                 self.G.add(UpSampling2D(self.strides[-1],name='UpSample_%i'%(i+1)))
                 self.G.add(Conv2D(1, self.kernels[-1], strides = 1, padding='same',
@@ -269,7 +269,7 @@ class KGAN(object):
         gbytes = np.round(total_memory / (1024.0 ** 3), 3)
         return gbytes
     
-    def train(self, x_train, filename, train_rate=(1,1),
+    def train(self, x_train, filename, train_rate=(1,2),
                     train_steps=2000, batch_size=32,
                     save_interval=100, verbose = 10,
                     samples=16):
@@ -304,9 +304,9 @@ class KGAN(object):
             # Train true and false sets with correct labels and train discriminator
             #d_loss=np.zeros(train_rate[0])
             for k in range(train_rate[0]):
-                y = np.random.binomial(1,.9,size=[batch_size, 1])
+                y = np.random.binomial(1,.99,size=[batch_size, 1])
                 d_loss_real = self.DM.train_on_batch(images_real, y)
-                y =np.random.binomial(1,.1,size=[batch_size, 1])
+                y =np.random.binomial(1,.01,size=[batch_size, 1])
                 d_loss_fake = self.DM.train_on_batch(images_fake,y)
                 #d_loss += np.add(d_loss_fake,d_loss_real)/2/train_rate[0]
                 d_loss = np.add(d_loss_fake,d_loss_real)/2
@@ -316,7 +316,7 @@ class KGAN(object):
             a_loss=np.zeros(2)#[0,0]
             for j in range(train_rate[1]):
                 y = np.ones([batch_size, 1])
-                noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.input_dim])
+                #noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.input_dim])
                 a_loss += np.array(self.AM.train_on_batch(noise, y))/np.max([1,train_rate[1]])
             
             # Generate log messages
