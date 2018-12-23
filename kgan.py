@@ -91,7 +91,7 @@ class KGAN(object):
         self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+2)))
             
         #self.D.add(BatchNormalization(momentum=0.9, name = 'BN_D%i'%(i+2)))
-        self.D.add(Dropout(.6, name = 'DO_D%i'%(i+2)))
+        #self.D.add(Dropout(.6, name = 'DO_D%i'%(i+2)))
         
         # Flatten final features and calculate the probability of the input belonging to the same 
         # as the training set
@@ -316,7 +316,7 @@ class KGAN(object):
             a_loss=np.zeros(2)#[0,0]
             for j in range(train_rate[1]):
                 y = np.ones([batch_size, 1])
-                #noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.input_dim])
+                noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.input_dim])
                 a_loss += np.array(self.AM.train_on_batch(noise, y))/np.max([1,train_rate[1]])
             
             # Generate log messages
