@@ -143,7 +143,7 @@ class DCGAN(object):
                 self.G.add(LeakyReLU(alpha=.2, name = 'LRelu_G%i'%(i+2)))
             else:
                 self.G.add(UpSampling2D(self.strides[-1],name='UpSample_%i'%(i+1), interpolation='bilinear'))
-                self.G.add(Conv2D(1, self.kernels[-1], strides = 1, padding='same',
+                self.G.add(Conv2D(self.channel, self.kernels[-1], strides = 1, padding='same',
                         kernel_initializer=initial,bias_initializer=bias_initial, name = 'Conv2D_G%i'%(i+1)))
                 self.G.add(Activation('tanh', name = 'Tanh'))
         
@@ -331,8 +331,9 @@ class DCGAN(object):
         for i in range(images.shape[0]):
             plt.subplot(int(samples**.5), int(samples**.5), i+1)
             image = images[i, :, :, :]
-            image = np.reshape(image, [self.img_rows, self.img_cols])
-            plt.imshow(image, cmap='viridis')#,vmin=-1,vmax=1)
+            if self.channel==1:
+                image = np.reshape(image, [self.img_rows, self.img_cols])
+            plt.imshow(((image+1)*255/2).astype('int'))
             plt.axis('off')
         plt.tight_layout()
         if filename!=None:

@@ -144,7 +144,7 @@ class WGAN(object):
                 self.G.add(LeakyReLU(alpha=.2, name = 'LRelu_G%i'%(i+2)))
             else:
                 self.G.add(UpSampling2D(self.strides[-1],name='UpSample_%i'%(i+1), interpolation='bilinear'))
-                self.G.add(Conv2D(1, self.kernels[-1], strides = 1, padding='same',
+                self.G.add(Conv2D(self.channel, self.kernels[-1], strides = 1, padding='same',
                         kernel_initializer=initial,bias_initializer=bias_initial, name = 'Conv2D_G%i'%(i+1)))
                 self.G.add(Activation('tanh', name = 'Tanh'))
         
@@ -170,16 +170,14 @@ class WGAN(object):
             self.DM = Sequential(name = 'Discriminator Model')
             self.DM.add(self.discriminator())
             optimizer = RMSprop(lr=0.00005)
-            self.DM.compile(loss=self.wasserstein_loss, optimizer=optimizer,\
-                    metrics=['accuracy'])
+            self.DM.compile(loss=self.wasserstein_loss, optimizer=optimizer)
         else:
             with tf.device("/cpu:0"):
                 self.DM = Sequential(name = 'Discriminator_Model')
                 self.DM.add(self.discriminator())
             self.DM = multi_gpu_model(self.DM,gpus=self.gpus)
             optimizer = RMSprop(lr=0.00005)
-            self.DM.compile(loss=self.wasserstein_loss, optimizer=optimizer,\
-                metrics=['accuracy'])
+            self.DM.compile(loss=self.wasserstein_loss, optimizer=optimizer)
 
         self.DM.summary()
         return self.DM
@@ -199,8 +197,7 @@ class WGAN(object):
             discriminator.trainable=False
             self.AM.add(discriminator)
             optimizer = RMSprop(lr=0.00005)
-            self.AM.compile(loss=self.wasserstein_loss, optimizer=optimizer,\
-                metrics=['accuracy'])
+            self.AM.compile(loss=self.wasserstein_loss, optimizer=optimizer)
         else:
             with tf.device("/cpu:0"):
                 self.AM = Sequential(name = 'Adversarial_Model')
@@ -211,8 +208,7 @@ class WGAN(object):
                 self.AM.add(discriminator)
             self.AM = multi_gpu_model(self.AM,gpus=self.gpus)
             optimizer = RMSprop(lr=0.00005)
-            self.AM.compile(loss=self.wasserstein_loss, optimizer=optimizer,\
-                metrics=['accuracy'])
+            self.AM.compile(loss=self.wasserstein_loss, optimizer=optimizer)
 
         self.AM.summary()
         # Set the discriminator back to trainable so the discriminator is in the correct state when reloading
@@ -282,11 +278,10 @@ class WGAN(object):
             if np.isnan(np.sum(d_loss+a_loss)):
                 print('Loss is nan')
                 break
-            if i >100:
-                loss_acc['Discriminator'].append(d_loss)
-                loss_acc['Adversarial'].append(a_loss)
-            log_mesg = "%d: [D loss: %f, acc: %f]" % (i, d_loss[0], d_loss[1])
-            log_mesg = "%s  [A loss: %f, acc: %f]" % (log_mesg, a_loss[0], a_loss[1])
+            loss_acc['Discriminator'].append(d_loss)
+            loss_acc['Adversarial'].append(a_loss)
+            log_mesg = "%d: [D loss: %f]" % (i, d_loss)
+            log_mesg = "%s  [A loss: %f]" % (log_mesg, a_loss)
             if i%verbose==0:
                 print(log_mesg)
             if save_interval>0:
@@ -306,8 +301,8 @@ class WGAN(object):
     def plot_stats(self, filename):
         with open(filename+'stats.txt','rb') as f:
             stats=pk.load(f)
-            d_loss,d_acc=zip(*stats['Discriminator'])
-            a_loss,a_acc=zip(*stats['Adversarial'])
+            d_loss = stats['Discriminator']
+            a_loss=stats['Adversarial']
         plt.figure(figsize=(10,5))
         plt.plot(d_loss,'-',label='Discriminator')
         plt.plot(a_loss,'--',label='Adversarial')
@@ -336,8 +331,9 @@ class WGAN(object):
         for i in range(images.shape[0]):
             plt.subplot(int(samples**.5), int(samples**.5), i+1)
             image = images[i, :, :, :]
-            image = np.reshape(image, [self.img_rows, self.img_cols])
-            plt.imshow(image, cmap='viridis')#,vmin=-1,vmax=1)
+            if self.channel==1:
+                image = np.reshape(image, [self.img_rows, self.img_cols])
+            plt.imshow(((image+1)*255/2).astype('int'))
             plt.axis('off')
         plt.tight_layout()
         if filename!=None:

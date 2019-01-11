@@ -36,11 +36,11 @@ class WGAN_GP(object):
                     depth = 64,
                     depth_scale = None,
                     input_dim = 100,
-                    clip_value = 0.01,
+                    batch_size = 32,
                     gpus=1,
                     ):
         
-        self.clip_value = clip_value
+        self.batch_size = batch_size
         self.gpus = gpus
         self.save_dir = save_dir
         self.load_dir = load_dir
@@ -148,7 +148,7 @@ class WGAN_GP(object):
                 self.G.add(LeakyReLU(alpha=.2, name = 'LRelu_G%i'%(i+2)))
             else:
                 self.G.add(UpSampling2D(self.strides[-1],name='UpSample_%i'%(i+1), interpolation='bilinear'))
-                self.G.add(Conv2D(1, self.kernels[-1], strides = 1, padding='same',
+                self.G.add(Conv2D(self.channel, self.kernels[-1], strides = 1, padding='same',
                          name = 'Conv2D_G%i'%(i+1)))
                 self.G.add(Activation('tanh', name = 'Tanh'))
         
@@ -211,7 +211,14 @@ class WGAN_GP(object):
         easy saving and reloading of models'''
         
         if self.DM:
-            return self.DM        
+            return self.DM 
+        
+        def RandomAverage(batch_size):
+            def layer(x):
+                weights = K.random_uniform((batch_size,1,1,1))
+                return (weights * x[0]) + ((1 - weights) * x[1])
+            return Lambda(layer)
+            
         discriminator =self.discriminator()
         generator =  self.generator()
         generator.trainable = False
@@ -221,7 +228,7 @@ class WGAN_GP(object):
         real = discriminator(real_img)
         fake = discriminator(fake_img)
         
-        interp_img = RandomWeightedAverage()([real_img, fake_img])
+        interp_img = RandomAverage(self.batch_size)([real_img, fake_img])
         interp = discriminator(interp_img)
         
         partial_gp_loss = partial(self.gradient_penalty_loss,
@@ -256,7 +263,7 @@ class WGAN_GP(object):
     
     
     def train(self, x_train, filename, train_rate=(1,2),
-                    train_steps=2000, batch_size=32,
+                    train_steps=2000,
                     save_interval=100, verbose = 10,
                     samples=16):
         '''Trains the generator and discriminator on x_train for batches = train_steps
@@ -269,6 +276,7 @@ class WGAN_GP(object):
                  printed
         samples: number of images in output plot
         '''
+        batch_size = self.batch_size
         self.G=self.generator()
         self.DM=self.discriminator_model()
         self.AM=self.adversarial_model()
@@ -277,8 +285,8 @@ class WGAN_GP(object):
             pk.dump(loss_acc,f)
         
         print('Training Beginning')
-        y_real = -np.ones((batch_size, 1))
-        y_fake = np.ones((batch_size,1))
+        y_real = np.ones((batch_size, 1))
+        y_fake = -np.ones((batch_size,1))
         y_dummy = np.zeros((batch_size,1))
             
         for i in range(train_steps):
@@ -361,8 +369,9 @@ class WGAN_GP(object):
         for i in range(images.shape[0]):
             plt.subplot(int(samples**.5), int(samples**.5), i+1)
             image = images[i, :, :, :]
-            image = np.reshape(image, [self.img_rows, self.img_cols])
-            plt.imshow(image, cmap='viridis')#,vmin=-1,vmax=1)
+            if self.channel==1:
+                image = np.reshape(image, [self.img_rows, self.img_cols])
+            plt.imshow(((image+1)*255/2).astype('int'))
             plt.axis('off')
         plt.tight_layout()
         if filename!=None:
@@ -417,12 +426,9 @@ class WGAN_GP(object):
         return gbytes
 
 
-
-    
-            
         
-class RandomWeightedAverage(_Merge):
-    
-        def _merge_function(self, inputs):
-            weights = K.random_uniform((32, 1, 1, 1))
-            return (weights * inputs[0]) + ((1 - weights) * inputs[1])
+# class RandomWeightedAverage(_Merge):
+       
+#         def _merge_function(self, inputs):
+#             weights = K.random_uniform((32, 1, 1, 1))
+#             return (weights * inputs[0]) + ((1 - weights) * inputs[1])
