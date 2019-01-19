@@ -113,9 +113,8 @@ class WGAN_GP(object):
         if self.G:
             return self.G
         
-#         #initialize weights from normal distribution with 1-sigma cutoff
-#         initial = TruncatedNormal(0,0.02)
-#         bias_initial = Zeros()
+        initial = 'he_normal'
+        bias_initial = Zeros()
         
         # depth/2*scale_depth give the number of features for each layer
         depth = self.depth
@@ -133,7 +132,7 @@ class WGAN_GP(object):
         self.G = Sequential(name='Generator')
         # First layer of generator is densely connected
         self.G.add(Dense(dim1*dim2*depth*depth_scale[0], input_dim=self.input_dim,
-                         name = 'Dense_G'))
+                         name = 'Dense_G', kernel_initializer=initial,bias_initializer=bias_initial))
         self.G.add(LeakyReLU(alpha=.2, name = 'LRelu_G1'))
         self.G.add(Reshape((dim1, dim2, depth*depth_scale[0]),name='Reshape'))
 
@@ -144,12 +143,12 @@ class WGAN_GP(object):
             if i < len(self.kernels)-1:
                 self.G.add(UpSampling2D(ks[1],name='UpSample_%i'%(i+1), interpolation='bilinear'))
                 self.G.add(Conv2D(depth*depth_scale[i+1], ks[0], strides = 1, padding='same',
-                         name = 'Conv2D_G%i'%(i+1)))
+                         name = 'Conv2D_G%i'%(i+1), kernel_initializer=initial,bias_initializer=bias_initial))
                 self.G.add(LeakyReLU(alpha=.2, name = 'LRelu_G%i'%(i+2)))
             else:
                 self.G.add(UpSampling2D(self.strides[-1],name='UpSample_%i'%(i+1), interpolation='bilinear'))
                 self.G.add(Conv2D(self.channel, self.kernels[-1], strides = 1, padding='same',
-                         name = 'Conv2D_G%i'%(i+1)))
+                         name = 'Conv2D_G%i'%(i+1), kernel_initializer=initial,bias_initializer=bias_initial))
                 self.G.add(Activation('tanh', name = 'Tanh'))
         
         # If the output of the last layer is larger than the input for the discriminator crop
