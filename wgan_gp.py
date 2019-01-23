@@ -15,7 +15,6 @@ from keras.layers import Input, Dense, Activation, Flatten, Reshape
 from keras.layers import Conv2D, Cropping2D, UpSampling2D
 from keras.layers import LeakyReLU, Dropout, Lambda, ReLU
 from keras.layers import BatchNormalization
-from keras.layers.merge import _Merge
 from keras.optimizers import Adam, RMSprop
 from keras.backend import log, count_params, int_shape
 from keras.initializers import TruncatedNormal, Zeros
@@ -24,7 +23,7 @@ import tensorflow as tf
 from keras import backend as K
 from functools import partial
 import os
-
+from keras_layer_normalization import LayerNormalization
 
 class WGAN_GP(object):
     def __init__(self, img_rows, img_cols,
@@ -70,7 +69,7 @@ class WGAN_GP(object):
         '''Create the discriminator if it does not already exist'''
         if self.D:
             return self.D
-        
+
         #initialize weights from normal distribution with 1-sigma cutoff
         initial = 'he_normal'
         bias_initial = Zeros()
@@ -93,17 +92,19 @@ class WGAN_GP(object):
         # Iterate over layers defined by the number of kernels and strides
         for i,ks in enumerate(zip(self.kernels[1:],self.strides[1:])):
             self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+1)))
+            self.D.add(LayerNormalization( name = 'LN_D%i'%(i+1)))
             self.D.add(Conv2D(depth*depth_scale[i+1], ks[0], strides=ks[1], padding='same', \
                         kernel_initializer=initial,bias_initializer=bias_initial, name = 'Conv2D_D%i'%(i+2)))
         
         self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+2)))
-            
+        self.D.add(LayerNormalization( name = 'LN_D%i'%(i+2)))    
         
         # Flatten final features and calculate the probability of the input belonging to the same 
         # as the training set
         self.D.add(Flatten(name = 'Flatten'))
         self.D.add(Dense(1024, kernel_initializer=initial,bias_initializer=bias_initial, name = 'Dense_D1'))
         self.D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+3)))
+        self.D.add(LayerNormalization( name = 'LN_D%i'%(i+3)))
         self.D.add(Dense(1, kernel_initializer=initial,bias_initializer=bias_initial, name = 'Dense_D2'))
         self.D.summary()
         return self.D
@@ -173,7 +174,7 @@ class WGAN_GP(object):
             # Only use the discriminator to evaluate the generator's output
             discriminator.trainable=False
             self.AM.add(discriminator)
-            optimizer = Adam(0.0001, beta_1=0.5, beta_2=0.9)
+            optimizer = Adam(0.0001, beta_1=0, beta_2=0.9)
             self.AM.compile(loss=self.wasserstein_loss, optimizer=optimizer)
         else:
             with tf.device("/cpu:0"):
@@ -184,7 +185,7 @@ class WGAN_GP(object):
                 discriminator.trainable=False
                 self.AM.add(discriminator)
             self.AM = multi_gpu_model(self.AM,gpus=self.gpus)
-            optimizer = Adam(0.0001, beta_1=0.5, beta_2=0.9)
+            optimizer = Adam(0.0001, beta_1=0, beta_2=0.9)
             self.AM.compile(loss=self.wasserstein_loss, optimizer=optimizer)
 
         self.AM.summary()
@@ -212,7 +213,7 @@ class WGAN_GP(object):
         if self.DM:
             return self.DM 
         
-        def RandomAverage(batch_size):
+        def random_average(batch_size):
             def layer(x):
                 weights = K.random_uniform((batch_size,1,1,1))
                 return (weights * x[0]) + ((1 - weights) * x[1])
@@ -227,7 +228,7 @@ class WGAN_GP(object):
         real = discriminator(real_img)
         fake = discriminator(fake_img)
         
-        interp_img = RandomAverage(self.batch_size)([real_img, fake_img])
+        interp_img = random_average(self.batch_size)([real_img, fake_img])
         interp = discriminator(interp_img)
         
         partial_gp_loss = partial(self.gradient_penalty_loss,
@@ -240,7 +241,7 @@ class WGAN_GP(object):
             self.DM = Model(inputs=[real_img, generator_input],
                             outputs=[real, fake, interp],
                             name = 'Discriminator Model')
-            optimizer = optimizer=Adam(0.0001, beta_1=0.5, beta_2=0.9)
+            optimizer = optimizer=Adam(0.0001, beta_1=0, beta_2=0.9)
             self.DM.compile(loss=[self.wasserstein_loss,self.wasserstein_loss,partial_gp_loss],
                             optimizer=optimizer)
         else:
@@ -249,7 +250,7 @@ class WGAN_GP(object):
                             outputs=[real, fake, interp],
                             name = 'Discriminator Model')
             self.DM = multi_gpu_model(self.DM,gpus=self.gpus)
-            optimizer = optimizer=Adam(0.0001, beta_1=0.5, beta_2=0.9)
+            optimizer = optimizer=Adam(0.0001, beta_1=0, beta_2=0.9)
             self.DM.compile(loss=[self.wasserstein_loss,self.wasserstein_loss,partial_gp_loss],
                             optimizer=optimizer)
 
@@ -261,7 +262,7 @@ class WGAN_GP(object):
 
     
     
-    def train(self, x_train, filename, train_rate=(1,2),
+    def train(self, x_train, filename, train_rate=(5,1),
                     train_steps=2000,
                     save_interval=100, verbose = 10,
                     samples=16):
@@ -293,7 +294,7 @@ class WGAN_GP(object):
                 rate = 100
             else:
                 rate = train_rate[0]
-            for k in range(train_rate[0]):
+            for k in range(rate):
                 
                 # Randomly select batch from training samples
                 images_real = x_train[np.random.randint(0,
@@ -301,7 +302,6 @@ class WGAN_GP(object):
                 
                 # Generate fake images from generator
                 noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.input_dim])
-                
                 d_loss = self.DM.train_on_batch([images_real, noise],
                                                [y_real, y_fake, y_dummy])
             # Now train the adversarial network
@@ -341,10 +341,13 @@ class WGAN_GP(object):
             d_loss = stats['Discriminator']
             a_loss=stats['Adversarial']
         plt.figure(figsize=(10,5))
-        plt.plot(d_loss,'-',label='Discriminator')
-        plt.plot(a_loss,'--',label='Adversarial')
-        plt.title('Loss')
-        plt.legend()
+        plt.subplot(2,1,1)
+        plt.plot(d_loss,'-')
+        plt.title('Discriminator Loss')
+        plt.subplot(2,1,2)
+        plt.plot(a_loss,'-')
+        plt.title('Generator Loss')
+        #plt.legend()
         plt.tight_layout()
         plt.savefig(filename+'stats_plots')
 
