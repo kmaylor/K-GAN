@@ -14,7 +14,7 @@ from keras.optimizers import Adam
 from keras.utils import multi_gpu_model
 from keras import backend as K
 import tensorflow as tf
-from ..utils.utils import *
+from utils.utils import *
 
 class DCGAN(object):
     """ Class for quickly building a DCGAN model (Radford et al. https://arxiv.org/pdf/1511.06434.pdf)

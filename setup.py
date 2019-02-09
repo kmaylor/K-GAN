@@ -6,8 +6,8 @@ assert sys.version_info >= (3,3), "KGAN requires Python version >= 3.3. You have
 
 setup(
     name='kgan',
-    version='0.1dev',
-    py_modules=['kgan'],
+    version='0.1',
+    packages=['gans','utils','examples'],
     long_description=open('README.md').read(),
     
 )

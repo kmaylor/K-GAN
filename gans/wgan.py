@@ -14,7 +14,7 @@ from keras.utils import multi_gpu_model
 from keras import backend as K
 import tensorflow as tf
 from keras_layer_normalization import LayerNormalization
-from ..utils.utils import *
+from utils.utils import *
 
 class WGAN(object):
     """ Class for quickly building a WGAN model (Arjovsky et al. https://arxiv.org/pdf/1701.07875.pdf)
@@ -244,8 +244,6 @@ class WGAN(object):
             samples: Number of images in output plot.
             nan_threshold: Number of allowed consecutive times the total loss for all models
                 can be NaN before stopping training.
-            discriminator_boost: How frequently to train the discriminator for an extra 100 steps
-                over the generator.
         '''
         logger = ProgressLogger(fileprefix, mesg_rate = mesg_rate,
                                 save_rate = save_rate, nan_threshold = nan_threshold)
@@ -263,11 +261,7 @@ class WGAN(object):
         y_fake = np.ones((batch_size, 1))
             
         for i in range(train_steps):
-            if i%discriminator_boost == 0:
-                rate = 100
-            else:
-                rate = train_rate[0]
-            for k in range(rate):
+            for k in range(train_rate[0]):
                 # First train the discriminator with correct labels
                 # Randomly select batch from training samples
                 images_real = x_train[np.random.randint(0,

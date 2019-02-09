@@ -33,7 +33,7 @@ class ProgressLogger(object):
     """
 
     def __init__(self,
-                 fileprefix = os.path.dirname(__file__),
+                 fileprefix,
                  nan_threshold = 100,
                  mesg_rate = 100,
                  save_rate = 500):

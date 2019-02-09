@@ -17,7 +17,7 @@ from keras import backend as K
 from functools import partial
 import tensorflow as tf
 from keras_layer_normalization import LayerNormalization
-from ..utils.utils import *
+from utils.utils import *
 
 class CTGAN(object):
     """ Class for quickly building a CTGAN model with gradient penalty (Wei et al. https://arxiv.org/pdf/1803.01541.pdf)
@@ -286,7 +286,6 @@ class CTGAN(object):
                 save_rate=100,
                 mesg_rate = 10,
                 nan_threshold = 100,
-                discriminator_boost = 1000,
                 samples=16):
         '''Trains the generator and discriminator.
         
@@ -294,15 +293,13 @@ class CTGAN(object):
             x_train: Data to train models on.
             fileprefix: Path to where to save the sample images and log files.
             train_rate: Iterable containing number of times to train the discriminator
-                and the generator in that order.
+                and the generator, in that order, at each step.
             train_steps: Number of batches to train on before stopping.
             save_rate: Number of steps afterwhich the models and samples will be saved.
             mesg_rate: Number of steps afterwhich the models loss will be printed.
             samples: Number of images in output plot.
             nan_threshold: Number of allowed consecutive times the total loss for all models
                 can be NaN before stopping training.
-            discriminator_boost: How frequently to train the discriminator for an extra 100 steps
-                over the generator.
         '''
         logger = ProgressLogger(fileprefix, mesg_rate = mesg_rate,
                                 save_rate = save_rate, nan_threshold = nan_threshold)
@@ -313,11 +310,7 @@ class CTGAN(object):
         y_dummy = np.zeros((batch_size,1))
             
         for i in range(train_steps):
-            if i%discriminator_boost == 0:
-                rate = 100
-            else:
-                rate = train_rate[0]
-            for k in range(rate):
+            for k in range(train_rate[0]):
                 # Randomly select batch from training samples
                 images_real = x_train[np.random.randint(0,
                     x_train.shape[0], size=batch_size), :, :, :]

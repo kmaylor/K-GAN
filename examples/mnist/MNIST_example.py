@@ -1,31 +1,86 @@
-#from wgan_gp import WGAN_GP as GAN
-#from wgan import WGAN as GAN
-#from dcgan import DCGAN as GAN
-from ct_gan import CTGAN as GAN
+from gans.dcgan import DCGAN
+from gans.wgan import WGAN
+from gans.wgan_gp import WGAN_GP
+from gans.ct_gan import CTGAN
 import numpy as np
 from keras.datasets import mnist
+import os
 
-class MNISTGAN(object):
-    def __init__(self):
-            
-        kernels = [4,4,4,4]
-        strides = [2,2,2,1]
+kernels = [5,5,5]
+strides = [2,2,2]
 
-        self.img_rows = 28
-        self.img_cols = 28
-        self.channel = 1
-        (self.x_train, _), (_, _) = mnist.load_data()
-        self.x_train = self.x_train.reshape(-1, self.img_rows,\
-        	self.img_cols, 1)/255*2-1
+img_rows = 28
+img_cols = 28
+channel = 1
+(x_train, _), (_, _) = mnist.load_data()
+x_train = x_train.reshape(-1, img_rows,img_cols, 1)/255*2-1
 
-        self.GAN = GAN(img_rows=self.img_rows, img_cols=self.img_cols, 
-                            load_dir=None, depth = 128, save_dir = 'Saved_Models/MNIST_example')
-        self.GAN.strides = strides
-        self.GAN.kernels = kernels
+current_dir = os.path.dirname(__file__)
 
-    def train(self):
-        self.GAN.train(self.x_train, 'MNIST_sims_',train_steps=5000, save_interval=500,
-                       verbose = 100, train_rate=(5,1))
+mnistGAN = DCGAN((img_rows,img_cols,channel), 
+        load_dir=None,
+        kernels = kernels,
+        strides = strides,
+        min_depth = 32,
+        save_dir = os.path.join(current_dir,'Saved_Model/DCGAN'))
+        
 
-t = MNISTGAN()
-t.train()
+mnistGAN.train(x_train,
+            os.path.join(current_dir,'DCGAN_figures/mnist'),
+            train_steps=5000,
+            save_rate=1000,
+            mesg_rate = 100,
+            train_rate=(1,1),
+            batch_size= 32)
+
+mnistGAN = WGAN((img_rows,img_cols,channel), 
+        load_dir=None,
+        kernels = kernels,
+        strides = strides,
+        min_depth = 32,
+        save_dir = os.path.join(current_dir,'Saved_Model/WGAN'))
+        
+
+mnistGAN.train(x_train,
+            os.path.join(current_dir,'WGAN_figures/mnist'),
+            train_steps=5000,
+            save_rate=1000,
+            mesg_rate = 100,
+            train_rate=(1,1),
+            batch_size= 32,
+            )
+
+mnistGAN = WGAN_GP((img_rows,img_cols,channel), 
+        load_dir=None,
+        kernels = kernels,
+        strides = strides,
+        min_depth = 32,
+        save_dir = os.path.join(current_dir,'Saved_Model/WGAN_GP'))
+        
+
+mnistGAN.train(x_train,
+            os.path.join(current_dir,'WGAN_GP_figures/mnist'),
+            train_steps=5000,
+            save_rate=1000,
+            mesg_rate = 100,
+            train_rate=(1,1),
+            batch_size= 32,
+            )
+
+mnistGAN = CTGAN((img_rows,img_cols,channel), 
+        load_dir=None,
+        kernels = kernels,
+        strides = strides,
+        min_depth = 32,
+        save_dir = os.path.join(current_dir,'Saved_Model/CTGAN'))
+        
+
+mnistGAN.train(x_train,
+            os.path.join(current_dir,'CTGAN_figures/mnist'),
+            train_steps=5000,
+            save_rate=1000,
+            mesg_rate = 100,
+            train_rate=(1,1),
+            batch_size= 32,
+            )
+
