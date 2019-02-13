@@ -273,7 +273,7 @@ class DCGAN(object):
                 
                 d_loss_real = self.models['discriminator_model'].train_on_batch(images_real, y_real)
                 d_loss_fake = self.models['discriminator_model'].train_on_batch(images_fake,y_fake)
-            d_loss = np.add(d_loss_fake,d_loss_real)*0.5
+            #d_loss = np.add(d_loss_fake,d_loss_real)*0.5
                 
             # Now train the adversarial network
             # Create new fake images labels as if they are from the training set
@@ -284,7 +284,11 @@ class DCGAN(object):
                 a_loss = self.models['adversarial_model'].train_on_batch(noise, y_lie)
             
             #Log losses and generator plots
-            logger.update(self,d_loss,a_loss, x_samples = images_real[:8])
+            tracked = {'Discriminator Real loss':d_loss_real,
+                       'Discriminator Generated loss':d_loss_fake,
+                       'Average Discriminator loss': (d_loss_real+d_loss_fake)/2,
+                       'Generator loss': a_loss}
+            logger.update(self, tracked, x_samples = images_real[:8])
             
 
     

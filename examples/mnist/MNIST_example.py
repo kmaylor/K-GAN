@@ -27,7 +27,7 @@ mnistGAN = DCGAN((img_rows,img_cols,channel),
 
 mnistGAN.train(x_train,
             os.path.join(current_dir,'DCGAN_figures/mnist'),
-            train_steps=5000,
+            train_steps=10000,
             save_rate=1000,
             mesg_rate = 100,
             train_rate=(1,1),
@@ -43,10 +43,10 @@ mnistGAN = WGAN((img_rows,img_cols,channel),
 
 mnistGAN.train(x_train,
             os.path.join(current_dir,'WGAN_figures/mnist'),
-            train_steps=5000,
+            train_steps=10000,
             save_rate=1000,
             mesg_rate = 100,
-            train_rate=(1,1),
+            train_rate=(5,1),
             batch_size= 32,
             )
 
@@ -60,10 +60,10 @@ mnistGAN = WGAN_GP((img_rows,img_cols,channel),
 
 mnistGAN.train(x_train,
             os.path.join(current_dir,'WGAN_GP_figures/mnist'),
-            train_steps=5000,
+            train_steps=10000,
             save_rate=1000,
             mesg_rate = 100,
-            train_rate=(1,1),
+            train_rate=(5,1),
             batch_size= 32,
             )
 
@@ -77,10 +77,10 @@ mnistGAN = CTGAN((img_rows,img_cols,channel),
 
 mnistGAN.train(x_train,
             os.path.join(current_dir,'CTGAN_figures/mnist'),
-            train_steps=5000,
+            train_steps=10000,
             save_rate=1000,
             mesg_rate = 100,
-            train_rate=(1,1),
+            train_rate=(5,1),
             batch_size= 32,
             )
 

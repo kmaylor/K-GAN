@@ -72,9 +72,10 @@ class CTGAN(object):
         
         self.models = dict.fromkeys(['discriminator','generator','discriminator_model','adversarial_model'])
         
+        custom_layers = {'LayerNormalization':LayerNormalization}
         if load_dir != None:
             print('Loading Previous State')
-            load_state(self)
+            load_state(self, custom_layers)
         else:
             self.models['discriminator'] = self.build_discriminator()   # discriminator
             self.models['generator'] = self.build_generator()   # generator
@@ -319,7 +320,7 @@ class CTGAN(object):
                 noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.latent_dim])
                 d_loss = self.models['discriminator_model'].train_on_batch([images_real, noise],
                                                [y_real, y_fake, y_dummy, y_dummy])
-            d_loss = np.add(d_loss[0],d_loss[1])*0.5
+            #d_loss = np.add(d_loss[0],d_loss[1])*0.5
               
             # Now train the adversarial network
             # Create new fake images labels as if they are from the training set
@@ -328,7 +329,11 @@ class CTGAN(object):
                 a_loss = self.models['adversarial_model'].train_on_batch(noise, y_real)
             
             #Log losses and generator plots
-            logger.update(self,d_loss,a_loss, x_samples = images_real[:8])
+            tracked = {'Discriminator Real loss':d_loss[0],
+                       'Discriminator Generated loss':d_loss[1],
+                       'Average Discriminator loss': (d_loss[0]+d_loss[1])/2,
+                       'Generator loss': a_loss}
+            logger.update(self, tracked, x_samples = images_real[:8])
             
     #def train_on_generator():
             

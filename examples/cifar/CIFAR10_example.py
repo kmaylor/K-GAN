@@ -6,7 +6,7 @@ import numpy as np
 import os
 from keras.datasets import cifar10
 
-kernels = [4,4,4,4]
+kernels = [5,5,5,5]
 strides = [2,2,2,1]
 
 img_rows = 32
@@ -47,7 +47,7 @@ cifarGAN.train(x_train,
             train_steps=5000,
             save_rate=1000,
             mesg_rate = 100,
-            train_rate=(1,1),
+            train_rate=(5,1),
             batch_size= 32,
             )
 
@@ -64,7 +64,7 @@ cifarGAN.train(x_train,
             train_steps=5000,
             save_rate=1000,
             mesg_rate = 100,
-            train_rate=(1,1),
+            train_rate=(5,1),
             batch_size= 32,
             )
 
@@ -77,9 +77,10 @@ cifarGAN = CTGAN((img_rows,img_cols,channel),
         
 
 cifarGAN.train(x_train,
+            os.path.join(current_dir,'CTGAN_figures/cifar'),
             train_steps=5000,
             save_rate=1000,
             mesg_rate = 100,
-            train_rate=(1,1),
+            train_rate=(5,1),
             batch_size= 32,
             )
