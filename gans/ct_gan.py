@@ -162,7 +162,7 @@ class CTGAN(object):
         
         G.add(UpSampling2D(self.strides[-1],name='UpSample_%i'%(i+2), interpolation='bilinear'))
         G.add(Conv2D(self.channel, self.kernels[-1], strides = 1, padding='same',
-                kernel_initializer='glorot_normal',bias_initializer='zeros', name = 'Conv2D_G%i'%(i+2)))
+                kernel_initializer='he_normal',bias_initializer='zeros', name = 'Conv2D_G%i'%(i+2)))
         G.add(Activation('tanh', name = 'Tanh'))
         
         # If the output of the last layer is larger than the input for the discriminator crop
@@ -180,6 +180,7 @@ class CTGAN(object):
         
         # Only use the discriminator to evaluate the generator's output
         self.models['discriminator'].trainable = False
+        for l in self.models['discriminator'].layers: l.trainable=False
         # Compile the gemerator model on the number of specified gpus
         if self.gpus <=1:
             AM = Sequential(name = 'Adversarial Model')
@@ -197,6 +198,7 @@ class CTGAN(object):
         # Set the discriminator back to trainable so the discriminator is in the correct state when reloading
         # a model
         self.models['discriminator'].trainable = True
+        for l in self.models['discriminator'].layers: l.trainable=True
         AM.summary()
         return AM
 
@@ -232,6 +234,8 @@ class CTGAN(object):
             return Lambda(layer)
             
         self.models['generator'].trainable = False
+        for l in self.models['generator'].layers: l.trainable=False
+
         
         real_img = Input(shape=(self.img_rows, self.img_cols, self.channel))
         generator_input = Input(shape=(self.latent_dim,))
@@ -272,6 +276,7 @@ class CTGAN(object):
 
         DM.summary()
         self.models['generator'].trainable = True
+        for l in self.models['generator'].layers: l.trainable=True
         return DM
 
     

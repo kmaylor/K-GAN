@@ -157,16 +157,20 @@ def save_state(gan):
         gan.models[k].save(gan.save_dir+'/'+k+'.h5')
            
                         
-def load_state(gan, custom_layers):
+def load_state(gan, custom_layers=None):
     """ Load a saved model.
         # Arguments
         gan: Instance of gan model to load a saved state into.
         custom_layers: A dictionary of custom layers used in the gan
             you are loading i.e. {'Name of custom layer': CustomLayerClass}
     """
-    with CustomObjectScope(custom_layers):
+    if custom_layers is None:
         for k in ['discriminator','generator']:
-            gan.models[k] = load_model(str(gan.load_dir)+'/'+k+'.h5')
+                gan.models[k] = load_model(str(gan.load_dir)+'/'+k+'.h5')
+    else:
+        with CustomObjectScope(custom_layers):
+            for k in ['discriminator','generator']:
+                gan.models[k] = load_model(str(gan.load_dir)+'/'+k+'.h5')
 
         
 def get_model_memory_usage(self,batch_size, model):

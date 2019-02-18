@@ -117,7 +117,7 @@ class DCGAN(object):
         D.add(Dense(1024, kernel_initializer='he_normal',bias_initializer='zeros', name = 'Dense_D1'))
         D.add(BatchNormalization(momentum=0.9, name = 'BNorm_D%i'%(i+2)))
         D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+3)))
-        D.add(Dense(1, kernel_initializer='glorot_normal',bias_initializer='zeros', name = 'Dense_D2'))
+        D.add(Dense(1, kernel_initializer='he_normal',bias_initializer='zeros', name = 'Dense_D2'))
         D.add(Activation('sigmoid', name = 'Sigmoid'))
         
         D.summary()
@@ -164,7 +164,7 @@ class DCGAN(object):
         
         G.add(UpSampling2D(self.strides[-1],name='UpSample_%i'%(i+2), interpolation='bilinear'))
         G.add(Conv2D(self.channel, self.kernels[-1], strides = 1, padding='same',
-                kernel_initializer='glorot_normal',bias_initializer='zeros', name = 'Conv2D_G%i'%(i+2)))
+                kernel_initializer='he_normal',bias_initializer='zeros', name = 'Conv2D_G%i'%(i+2)))
         G.add(Activation('tanh', name = 'Tanh'))
         
         # If the output of the last layer is larger than the input for the discriminator crop
