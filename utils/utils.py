@@ -38,7 +38,8 @@ class ProgressLogger(object):
                  fileprefix,
                  nan_threshold = 100,
                  mesg_rate = 100,
-                 save_rate = 500):
+                 save_rate = 500,
+                 call_back = None):
         
         self.mesg_rate = mesg_rate
         self.save_rate = save_rate
@@ -48,6 +49,7 @@ class ProgressLogger(object):
         #Create file for loss statistics
         self.fileprefix = fileprefix
         self.step = 0
+        self.call_back = call_back
         with open(self.fileprefix+'_losses.txt','wb') as f:
             pk.dump(self.tracked,f)
 
@@ -66,7 +68,10 @@ class ProgressLogger(object):
         for k,v in tracked.items():
             self.tracked[k].append(v)
         self.step += 1
-        if self.step%self.mesg_rate == 0: self.log_mesg()
+        if self.step%self.mesg_rate == 0:
+            self.log_mesg()
+            if self.call_back is not None:
+                    self.call_back(gan)
         total_loss = np.sum(list(tracked.values()))
         if np.isnan(total_loss):
                 self.nan_loss_count+=1

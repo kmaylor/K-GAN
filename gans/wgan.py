@@ -229,7 +229,7 @@ class WGAN(object):
                 mesg_rate = 10,
                 samples=16,
                 nan_threshold = 100,
-                discriminator_boost = 1000):
+                call_back = None):
         '''Trains the generator and discriminator.
         
         # Arguments
@@ -244,9 +244,11 @@ class WGAN(object):
             samples: Number of images in output plot.
             nan_threshold: Number of allowed consecutive times the total loss for all models
                 can be NaN before stopping training.
+            call_back: A function that will be called at the same rate as mesg_rate and takes the
+                current DCGAN instance as input.
         '''
         logger = ProgressLogger(fileprefix, mesg_rate = mesg_rate,
-                                save_rate = save_rate, nan_threshold = nan_threshold)
+                                save_rate = save_rate, nan_threshold = nan_threshold, call_back=call_back)
         
         # Function used for clipping the weights in the discriminator model.
         def weight_clipper(model):

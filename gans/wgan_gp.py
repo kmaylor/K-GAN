@@ -265,7 +265,8 @@ class WGAN_GP(object):
                 save_rate=100,
                 mesg_rate = 10,
                 nan_threshold = 100,
-                samples=16):
+                samples=16,
+                call_back = None):
         '''Trains the generator and discriminator.
         
         # Arguments
@@ -279,9 +280,11 @@ class WGAN_GP(object):
             samples: Number of images in output plot.
             nan_threshold: Number of allowed consecutive times the total loss for all models
                 can be NaN before stopping training.
+            call_back: A function that will be called at the same rate as mesg_rate and takes the
+                current DCGAN instance as input.
         '''
         logger = ProgressLogger(fileprefix, mesg_rate = mesg_rate,
-                                save_rate = save_rate, nan_threshold = nan_threshold)
+                                save_rate = save_rate, nan_threshold = nan_threshold, call_back=call_back)
                 
         print('Training Beginning')
         y_real = -np.ones((batch_size, 1))

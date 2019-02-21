@@ -231,7 +231,8 @@ class DCGAN(object):
                 mesg_rate = 10,
                 samples=16,
                 noisy_label=0.01,
-                nan_threshold = 100):
+                nan_threshold = 100,
+                call_back = None):
         '''Trains the generator and discriminator.
         
         # Arguments
@@ -247,9 +248,11 @@ class DCGAN(object):
             noisy_label: Rate at which to swap training labels for the generator.
             nan_threshold: Number of allowed consecutive times the total loss for all models
                 can be NaN before stopping training.
+            call_back: A function that will be called at the same rate as mesg_rate and takes the
+                current DCGAN instance as input.
         '''
         logger = ProgressLogger(fileprefix, mesg_rate = mesg_rate,
-                                save_rate = save_rate, nan_threshold = nan_threshold)
+                                save_rate = save_rate, nan_threshold = nan_threshold, call_back=call_back)
         
         
         print('Training Beginning')
@@ -289,6 +292,7 @@ class DCGAN(object):
                        'Average Discriminator loss': (d_loss_real+d_loss_fake)/2,
                        'Generator loss': a_loss}
             logger.update(self, tracked, x_samples = images_real[:8])
+            
             
 
     
