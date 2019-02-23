@@ -127,7 +127,7 @@ class WGAN(object):
             G.add(UpSampling2D(stride,name='UpSample_%i'%(i+1), interpolation='bilinear'))
             G.add(Conv2D(depth, kernel, strides = 1, padding='same',
                     kernel_initializer='he_normal',bias_initializer='zeros', name = 'Conv2D_G%i'%(i+1)))
-            G.add(LayerNormalization( name = 'LN_G%i'%(i+2)))
+            G.add(BatchNormalization(momentum=0.9, name = 'BN_G%i'%(i+2)))
             G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G%i'%(i+2)))
         
         
@@ -150,7 +150,7 @@ class WGAN(object):
         G.add(Dense(dim1*dim2*depth*depth_scale[0], input_dim=self.latent_dim,
                         kernel_initializer='he_normal',bias_initializer='zeros', name = 'Dense_G'))
         G.add(Reshape((dim1, dim2, depth*depth_scale[0]),name='Reshape'))
-        G.add(LayerNormalization( name = 'LNorm_G1'))
+        G.add(BatchNormalization(momentum=0.9, name = 'BN_G1'))
         G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G1'))
 
         # Iterate over layers defined by the number of kernels and strides
