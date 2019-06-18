@@ -5,9 +5,9 @@ import os
 import types
 from keras import __version__
 print("Using Keras version = "+__version__)
-from keras.models import Sequential
-from keras.layers import Dense, Activation, Flatten, Reshape
-from keras.layers import Conv2D, Cropping2D, UpSampling2D
+from keras.models import Sequential, Model
+from keras.layers import Dense, Activation, Flatten, Reshape, Input, Concatenate
+from keras.layers import Conv2D, Cropping2D, UpSampling2D, Conv1D
 from keras.layers import LeakyReLU, Dropout, Lambda, ReLU
 from keras.layers import BatchNormalization
 from keras.optimizers import Adam
@@ -16,7 +16,7 @@ from keras import backend as K
 import tensorflow as tf
 from utils.utils import *
 
-class DCGAN(object):
+class PowerGAN(object):
     """ Class for quickly building a DCGAN model (Radford et al. https://arxiv.org/pdf/1511.06434.pdf)
     
     # Arguments
@@ -46,7 +46,7 @@ class DCGAN(object):
                     strides,
                     min_depth,
                     depth_scale = None,
-                    latent_dim = 100,
+                    latent_dim = 64,
                     load_dir = None,
                     save_dir = 'Saved_Models/dcgan',
                     gpus = 1,
@@ -64,23 +64,26 @@ class DCGAN(object):
         self.depth = min_depth
         self.discriminator_optimizer = discriminator_optimizer
         self.generator_optimizer = generator_optimizer
-        
         # If depth_scale not provided increase the number of features after each convolution by factor of 2.
         if depth_scale == None:
             self.depth_scale = lambda:((2*np.ones(len(self.kernels)))**np.arange(len(self.kernels))).astype('int')
         
-        self.models = dict.fromkeys(['discriminator','generator','discriminator_model','adversarial_model'])
+        self.models = dict.fromkeys(['discriminator','power_discriminator',
+                                     'generator','discriminator_model','adversarial_model'])
 
         if load_dir != None:
             print('Loading Previous State')
-            load_state(self)
+            load_state(self,models=['discriminator','power_discriminator','generator'])
         else:
             self.models['discriminator'] = self.build_discriminator()   # discriminator
+            self.models['power_discriminator'] = self.build_power_discriminator()   # discriminator
             self.models['generator'] = self.build_generator()   # generator
+
         self.models['discriminator_model'] = self.build_discriminator_model()  # discriminator model
         self.models['adversarial_model'] = self.build_adversarial_model()  # adversarial model
 
-
+    
+    
     def build_discriminator(self):
         '''Create the discriminator'''
 
@@ -100,7 +103,7 @@ class DCGAN(object):
         input_shape = (self.img_rows, self.img_cols, self.channel)
 
         # Discriminator is sequential model
-        D = Sequential(name='Discriminator')
+        D = Sequential(name='Image_Discriminator')
         # First layer of discriminator is a convolution, minimum of two convolutional layers
         D.add(Conv2D(depth*depth_scale[0], self.kernels[0], strides=self.strides[0], \
                     input_shape=input_shape, padding='same', kernel_initializer='he_normal',
@@ -114,13 +117,39 @@ class DCGAN(object):
         # Flatten final features and calculate the probability of the input belonging to the same 
         # as the training set
         D.add(Flatten(name = 'Flatten'))
-        #D.add(Dense(1024, kernel_initializer='he_normal',bias_initializer='zeros', name = 'Dense_D1'))
-        #D.add(BatchNormalization(momentum=0.9, name = 'BNorm_D%i'%(i+2)))
-        #D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+3)))
+        # D.add(Dense(512, kernel_initializer='he_normal',bias_initializer='zeros', name = 'Dense_D1'))
+        # D.add(BatchNormalization(momentum=0.9, name = 'BNorm_D%i'%(i+2)))
+        # D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+3)))
         D.add(Dense(1, kernel_initializer='he_normal',bias_initializer='zeros', name = 'Dense_D2'))
         D.add(Activation('sigmoid', name = 'Sigmoid'))
         
         D.summary()
+        return D
+    
+    
+    def build_power_discriminator(self):
+        '''Create the discriminator'''
+
+        def discriminator_block(D, depth, kernel_size, stride):
+            D.add(Conv1D(depth, kernel_size, strides=stride))
+            D.add(BatchNormalization(momentum=0.9))
+            D.add(LeakyReLU(alpha=0.2))
+
+        input_shape = (128,1)
+        D = Sequential(name='Power_Discriminator')
+        # First layer of discriminator is a convolution, minimum of two convolutional layers
+        D.add(Conv1D(32, 5, strides=2, input_shape=input_shape))
+        D.add(LeakyReLU(alpha=0.2))
+        discriminator_block(D,64,2,2)
+        discriminator_block(D,128,2,1)
+        D.add(Flatten())
+        D.add(Dense(128))
+        D.add(BatchNormalization(momentum=0.9))
+        D.add(LeakyReLU(alpha=0.2))
+        D.add(Dense(1))
+        D.add(Activation('sigmoid'))
+        D.summary()
+        
         return D
 
 
@@ -172,23 +201,29 @@ class DCGAN(object):
         crop_r = int((G.get_layer('Tanh').output_shape[1]-self.img_rows)/2)
         crop_c = int((G.get_layer('Tanh').output_shape[2]-self.img_cols)/2)
         G.add(Cropping2D(cropping=((crop_c,crop_c),(crop_r,crop_r)), name = 'Crop2D'))
-        
         G.summary()
         return G
 
-
+    def wasserstein_loss(self, y_true, y_pred):
+        return K.mean(y_true * y_pred)
+    
     def build_discriminator_model(self):
         '''Build and compile the discriminator model from the discriminator.'''
-        
-        self.models['discriminator'].trainable = True
+        input_shape = (self.img_rows, self.img_cols, self.channel)
+        input_img = Input(shape=input_shape)
+        x = self.models['discriminator'](input_img)
+        p=Reshape((256,256))(input_img)
+        p = Lambda(power1D)(p)
+        p = Reshape((128,1))(p)
+        p = self.models['power_discriminator'](p)
         # Compile the discriminator model on the number of specified gpus
         if self.gpus <=1:
-            DM = Sequential(name = 'Discriminator Model')
-            DM.add(self.models['discriminator'])
+            DM = Model(inputs=input_img,
+                        outputs=[x,p], name='Discriminator_Model')
         else:
             with tf.device("/cpu:0"):
-                DM = Sequential(name = 'Discriminator_Model')
-                DM.add(self.models['discriminator'])
+                DM = Model(inputs=input_img,
+                        outputs=[x,p], name='Discriminator_Model')
             DM = multi_gpu_model(DM,gpus=self.gpus)
         DM.compile(loss='binary_crossentropy', optimizer=self.discriminator_optimizer)
 
@@ -201,23 +236,29 @@ class DCGAN(object):
         discriminator on the generator'''
 
         # Only use the discriminator to evaluate the generator's output, don't want to update weights
-        self.models['discriminator'].trainable = False
+        for l in self.models['discriminator_model'].layers:
+            l.trainable = False
+            
+        input_shape = (64,)
+        input_img = Input(shape=input_shape)
+        x = self.models['generator'](input_img)
+        x = self.models['discriminator_model'](x)
         
         # Compile the generator model on the number of specified gpus
         if self.gpus <=1:
-            AM = Sequential(name = 'Adversarial Model')
-            AM.add(self.models['generator'])
-            AM.add(self.models['discriminator'])
+            AM = Model(inputs=input_img,
+                        outputs=x, name='Adversarial_Model')
         else:
             with tf.device("/cpu:0"):
-                AM = Sequential(name = 'Adversarial_Model')
-                AM.add(self.models['generator'])
-                AM.add(self.models['discriminator'])
+                AM = Model(inputs=input_img,
+                        outputs=x, name='Adversarial_Model')
             AM = multi_gpu_model(AM,gpus=self.gpus)
         AM.compile(loss='binary_crossentropy', optimizer=self.generator_optimizer)
 
         # Set the discriminator back to trainable so the discriminator is in the correct state when reloading
         # a model
+        for l in self.models['discriminator_model'].layers:
+            l.trainable = True
         AM.summary()
         return AM
 
@@ -253,8 +294,8 @@ class DCGAN(object):
                 current DCGAN instance as input.
         '''
         logger = ProgressLogger(fileprefix, mesg_rate = mesg_rate,
-                                save_rate = save_rate, nan_threshold = nan_threshold, call_back=call_back)
-        
+                                save_rate = save_rate, nan_threshold = nan_threshold,
+                                 call_back=call_back,models_to_save=['discriminator','power_discriminator','generator'])
         
         print('Training Beginning')
         
@@ -275,23 +316,22 @@ class DCGAN(object):
                 noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.latent_dim])
                 images_fake = self.models['generator'].predict(noise)
                 
-                d_loss_real = self.models['discriminator_model'].train_on_batch(images_real, y_real)
-                d_loss_fake = self.models['discriminator_model'].train_on_batch(images_fake,y_fake)
+                d_loss_real = self.models['discriminator_model'].train_on_batch(images_real, [y_real,y_real])
+                d_loss_fake = self.models['discriminator_model'].train_on_batch(images_fake,[y_fake,y_fake])
             #d_loss = np.add(d_loss_fake,d_loss_real)*0.5
-                
             # Now train the adversarial network
             # Create new fake images labels as if they are from the training set
-            
+            #weight_clipper(self.models['discriminator_model'])
             for j in range(train_rate[1]):
                 y_lie = np.ones([batch_size, 1])
                 noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.latent_dim])
-                a_loss = self.models['adversarial_model'].train_on_batch(noise, y_lie)
+                a_loss = self.models['adversarial_model'].train_on_batch(noise, [y_lie,y_lie])
             
             #Log losses and generator plots
-            tracked = {'Discriminator Real loss':d_loss_real,
-                       'Discriminator Generated loss':d_loss_fake,
-                       'Average Discriminator loss': (d_loss_real+d_loss_fake)/2,
-                       'Generator loss': a_loss}
+            tracked = {'Discriminator Real loss':d_loss_real[0]/2,
+                       'Discriminator Generated loss':d_loss_fake[0]/2,
+                       'Average Discriminator loss': (d_loss_real[0]/2+d_loss_fake[0]/2)/2,
+                       'Generator loss': a_loss[0]}
             logger.update(self, tracked, x_samples = images_real[:8])
             
             
@@ -300,5 +340,39 @@ class DCGAN(object):
     #def train_on_generator():
 
 
+def power2D(x):
+    x = tf.spectral.fft2d(tf.cast(x,dtype=tf.complex64))
+    x = tf.cast(x,dtype=tf.complex64)
+    xl,xu = tf.split(x,2,axis=1)
+    xll,xlr = tf.split(xl,2,axis=2)
+    xul,xur = tf.split(xu,2,axis=2)
+    xu = tf.concat([xlr,xll],axis=2)
+    xl = tf.concat([xur,xul],axis=2)
+    x=tf.concat([xl,xu],axis=1)
+    x = tf.abs(x)
+    return tf.square(x)
+     
+class AZAverage(object):
+    
+    def __init__(self,size):
+        self.size = size
+        x,y = np.meshgrid(np.arange(size),np.arange(size))
+        R = np.sqrt((x-size/2)**2+(y-size/2)**2)
+        masks = np.array(list(map(lambda r : (R >= r-.5) & (R < r+.5),np.arange(1,int(size/2+1),1))))
+        norm = np.sum(masks,axis=(1,2),keepdims=True)
+        masks=masks/norm
+        n=len(masks)
+        self.big_mask = tf.reshape(tf.cast(masks,dtype=tf.float32),(1,n,size,size))
+        
+    def __call__(self,v):
+        v=tf.reshape(v,(-1,1,self.size,self.size))
+        return tf.reduce_sum(tf.reduce_sum(tf.multiply(self.big_mask,v),axis=3),axis=2)
 
+az_average = AZAverage(256)
+    
+def power1D(x):
+    x = power2D(x)
+    az_avg = az_average(x)
+    ell=np.arange(int(az_avg.shape[1]))*9
+    return tf.multiply(az_avg,tf.reshape(tf.cast(ell*(ell+1)/2/np.pi/1e11,dtype=tf.float32),(1,-1)))
         

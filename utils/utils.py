@@ -39,6 +39,7 @@ class ProgressLogger(object):
                  nan_threshold = 100,
                  mesg_rate = 100,
                  save_rate = 500,
+                 models_to_save = ['discriminator','generator'],
                  call_back = None):
         
         self.mesg_rate = mesg_rate
@@ -50,6 +51,7 @@ class ProgressLogger(object):
         self.fileprefix = fileprefix
         self.step = 0
         self.call_back = call_back
+        self.models_to_save = models_to_save
         with open(self.fileprefix+'_losses.txt','wb') as f:
             pk.dump(self.tracked,f)
 
@@ -81,7 +83,7 @@ class ProgressLogger(object):
             self.nan_loss_count=0
         if self.step%self.save_rate == 0:
             self.save_losses()
-            save_state(gan)
+            save_state(gan,self.models_to_save)
             if (x_samples is not None) or (num_samples != 0):
                 self.plot_losses()
                 plot_samples(gan, self.fileprefix+'_samples_'+str(self.step), x_samples = x_samples, num_samples = num_samples)
@@ -156,13 +158,13 @@ def plot_samples(gan, filename, x_samples = None, num_samples = 8):
     plt.close('all')
 
         
-def save_state(gan):
+def save_state(gan,models=['discriminator','generator']):
     if not os.path.exists(str(gan.save_dir)): os.makedirs(str(gan.save_dir))
-    for k in ['discriminator','generator']:
+    for k in models:
         gan.models[k].save(gan.save_dir+'/'+k+'.h5')
            
                         
-def load_state(gan, custom_layers=None):
+def load_state(gan,models=['discriminator','generator'], custom_layers=None):
     """ Load a saved model.
         # Arguments
         gan: Instance of gan model to load a saved state into.
@@ -170,11 +172,12 @@ def load_state(gan, custom_layers=None):
             you are loading i.e. {'Name of custom layer': CustomLayerClass}
     """
     if custom_layers is None:
-        for k in ['discriminator','generator']:
+        for k in models:
+                print(k)
                 gan.models[k] = load_model(str(gan.load_dir)+'/'+k+'.h5')
     else:
         with CustomObjectScope(custom_layers):
-            for k in ['discriminator','generator']:
+            for k in models:
                 gan.models[k] = load_model(str(gan.load_dir)+'/'+k+'.h5')
 
         

@@ -1,5 +1,5 @@
 
-from distutils.core import setup
+from setuptools import setup
 
 import sys, platform
 assert sys.version_info >= (3,3), "KGAN requires Python version >= 3.3. You have "+platform.python_version()
