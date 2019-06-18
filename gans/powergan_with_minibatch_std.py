@@ -141,7 +141,7 @@ class PowerGAN(object):
             x = BatchNormalization(momentum=0.9)(x)
             return LeakyReLU(alpha=0.2)(x)
 
-        input_shape = (128,1)
+        input_shape = (int(self.img_rows/2),1)
         input_power = Input(input_shape)
         # First layer of discriminator is a convolution, minimum of two convolutional layers
         x = Conv1D(32, 5, strides=2)(input_power)
@@ -219,9 +219,9 @@ class PowerGAN(object):
         input_shape = (self.img_rows, self.img_cols, self.channel)
         input_img = Input(shape=input_shape)
         x = self.models['discriminator'](input_img)
-        p=Reshape((256,256))(input_img)
+        p=Reshape((self.img_rows, self.img_cols))(input_img)
         p = Lambda(lambda v: ps.power1D(v))(p)
-        p = Reshape((128,1))(p)
+        p = Reshape((int(self.img_rows/2),1))(p)
         p = self.models['power_discriminator'](p)
         # Compile the discriminator model on the number of specified gpus
         if self.gpus <=1:
@@ -246,13 +246,13 @@ class PowerGAN(object):
         self.models['discriminator'].trainable = False
         self.models['power_discriminator'].trainable = False
             
-        input_shape = (64,)
+        input_shape = (self.latent_dim,)
         input_noise = Input(shape=input_shape)
         gen = self.models['generator'](input_noise)
         x = self.models['discriminator'](gen)
-        p=Reshape((256,256))(gen)
+        p=Reshape((self.img_rows, self.img_cols))(gen)
         p = Lambda(lambda v: ps.power1D(v))(p)
-        p = Reshape((128,1))(p)
+        p = Reshape((int(self.img_rows/2),1))(p)
         p = self.models['power_discriminator'](p)
         # Compile the generator model on the number of specified gpus
         if self.gpus <=1:
