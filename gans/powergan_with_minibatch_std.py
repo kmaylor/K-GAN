@@ -85,17 +85,19 @@ class PowerGAN(object):
         self.models['discriminator_model'] = self.build_discriminator_model()  # discriminator model
         self.models['adversarial_model'] = self.build_adversarial_model()  # adversarial model
 
-    def batch_std(self,x):
-            shape = K.shape(x)
-            dims = [shape[i] for i in range(len(x.shape)-1)]+[1]
-            s = K.std(x,keepdims=True, axis=np.arange(1,len(x.shape)-1))
-            s = tf.reduce_mean(x,keep_dims=True)
-            s = K.tile(s, dims)
-            return K.concatenate([x, s], axis=-1)
+    
     
     
     def build_discriminator(self):
         '''Create the discriminator'''
+
+        def batch_std(x):
+            # shape = K.shape(x)
+            # dims = [shape[i] for i in range(len(x.shape)-1)]+[1]
+            s = K.std(x,keepdims=True, axis=[1,2])
+            s = K.mean(x,keepdims=True)
+            s = K.tile(s, [K.shape(x)[0],32,32,1])
+            return K.concatenate([x, s], axis=-1)
 
         def discriminator_block(x, depth, kernel_size, stride):
             x = Conv2D(depth, kernel_size, strides=stride, padding='same')(x)
@@ -120,7 +122,7 @@ class PowerGAN(object):
         # Iterate over layers defined by the number of kernels and strides
         for i,ks in enumerate(zip(self.kernels[1:],self.strides[1:])):
             if i==len(self.kernels[1:])-1:
-                x = Lambda(self.batch_std)(x)
+                x = Lambda(batch_std)(x)
             x = discriminator_block(x,depth*depth_scale[i+1],ks[0],ks[1])
         
         # Flatten final features and calculate the probability of the input belonging to the same 
@@ -136,6 +138,14 @@ class PowerGAN(object):
     def build_power_discriminator(self):
         '''Create the discriminator'''
 
+        def batch_std(x):
+            # shape = K.shape(x)
+            # dims = [shape[i] for i in range(len(x.shape)-1)]+[1]
+            s = K.std(x,keepdims=True, axis=[1,2])
+            s = K.mean(x,keepdims=True)
+            s = K.tile(s, [K.shape(x)[0],31,1])
+            return K.concatenate([x, s], axis=-1)
+
         def discriminator_block(x, depth, kernel_size, stride):
             x = Conv1D(depth, kernel_size, strides=stride, padding='same')(x)
             x = BatchNormalization(momentum=0.9)(x)
@@ -148,7 +158,7 @@ class PowerGAN(object):
         x = LeakyReLU(alpha=0.2)(x)
         x = discriminator_block(x,64,2,2)
         x = discriminator_block(x,128,2,1)
-        x = Lambda(self.batch_std)(x)
+        x = Lambda(batch_std)(x)
         x = discriminator_block(x,128,2,1)
         x = Flatten()(x)
         x = Dense(128)(x)
