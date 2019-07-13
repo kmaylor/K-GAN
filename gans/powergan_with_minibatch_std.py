@@ -17,7 +17,7 @@ import tensorflow as tf
 from utils.utils import *
 from tensorflow_power_spectrum import PowerSpectrum
 
-ps = PowerSpectrum(image_size=256)
+ps = PowerSpectrum(image_size=256, scale=1e-11)
 
 class PowerGAN(object):
     """ Class for quickly building a DCGAN model (Radford et al. https://arxiv.org/pdf/1511.06434.pdf)
@@ -53,8 +53,8 @@ class PowerGAN(object):
                     load_dir = None,
                     save_dir = 'Saved_Models/dcgan',
                     gpus = 1,
-                    discriminator_optimizer = Adam(lr=0.0002,beta_1=0.5, decay=0),
-                    generator_optimizer = Adam(lr=0.0002,beta_1=0.5, decay=0)
+                    discriminator_optimizer = Adam(lr=0.0002,beta_1=0.5, decay=0, clipnorm=1),
+                    generator_optimizer = Adam(lr=0.0002,beta_1=0.5, decay=0, clipnorm=1)
                     ):
         
         self.img_rows, self.img_cols, self.channel = img_dims
@@ -94,7 +94,7 @@ class PowerGAN(object):
         def batch_std(x):
             # shape = K.shape(x)
             # dims = [shape[i] for i in range(len(x.shape)-1)]+[1]
-            s = K.std(x,keepdims=True, axis=[1,2])
+            s = K.std(x,keepdims=True, axis=[0])
             s = K.mean(x,keepdims=True)
             s = K.tile(s, [K.shape(x)[0],32,32,1])
             return K.concatenate([x, s], axis=-1)
@@ -141,9 +141,9 @@ class PowerGAN(object):
         def batch_std(x):
             # shape = K.shape(x)
             # dims = [shape[i] for i in range(len(x.shape)-1)]+[1]
-            s = K.std(x,keepdims=True, axis=[1,2])
+            s = K.std(x,keepdims=True, axis=[0])
             s = K.mean(x,keepdims=True)
-            s = K.tile(s, [K.shape(x)[0],31,1])
+            s = K.tile(s, [K.shape(x)[0],32,1])
             return K.concatenate([x, s], axis=-1)
 
         def discriminator_block(x, depth, kernel_size, stride):
@@ -154,12 +154,11 @@ class PowerGAN(object):
         input_shape = (int(self.img_rows/2),1)
         input_power = Input(input_shape)
         # First layer of discriminator is a convolution, minimum of two convolutional layers
-        x = Conv1D(32, 5, strides=2)(input_power)
+        x = Conv1D(32, 3, strides=2)(input_power)
         x = LeakyReLU(alpha=0.2)(x)
-        x = discriminator_block(x,64,2,2)
-        x = discriminator_block(x,128,2,1)
+        x = discriminator_block(x,64,3,2)
         x = Lambda(batch_std)(x)
-        x = discriminator_block(x,128,2,1)
+        x = discriminator_block(x,128,3,1)
         x = Flatten()(x)
         x = Dense(128)(x)
         x = BatchNormalization(momentum=0.9)(x)
@@ -331,7 +330,8 @@ class PowerGAN(object):
                 
                 images_real = x_train[np.random.randint(0,
                     x_train.shape[0], size=batch_size), :, :, :]
-                
+                for i,image in enumerate(images_real):
+                    images_real[i]=np.rot90(image,np.random.randint(0,4))
                 # Generate fake images from generator
                 noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.latent_dim])
                 images_fake = self.models['generator'].predict(noise)
@@ -345,7 +345,6 @@ class PowerGAN(object):
                 y_lie = np.ones([batch_size, 1])
                 noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.latent_dim])
                 a_loss = self.models['adversarial_model'].train_on_batch(noise, [y_lie,y_lie])
-            
             #Log losses and generator plots
             tracked = {'Discriminator Real loss':d_loss_real[0]/2,
                        'Discriminator Generated loss':d_loss_fake[0]/2,

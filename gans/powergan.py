@@ -15,6 +15,9 @@ from keras.utils import multi_gpu_model
 from keras import backend as K
 import tensorflow as tf
 from utils.utils import *
+from tensorflow_power_spectrum import PowerSpectrum
+
+ps = PowerSpectrum(image_size=256,scale=1e-11)
 
 class PowerGAN(object):
     """ Class for quickly building a DCGAN model (Radford et al. https://arxiv.org/pdf/1511.06434.pdf)
@@ -117,9 +120,6 @@ class PowerGAN(object):
         # Flatten final features and calculate the probability of the input belonging to the same 
         # as the training set
         D.add(Flatten(name = 'Flatten'))
-        # D.add(Dense(512, kernel_initializer='he_normal',bias_initializer='zeros', name = 'Dense_D1'))
-        # D.add(BatchNormalization(momentum=0.9, name = 'BNorm_D%i'%(i+2)))
-        # D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+3)))
         D.add(Dense(1, kernel_initializer='he_normal',bias_initializer='zeros', name = 'Dense_D2'))
         D.add(Activation('sigmoid', name = 'Sigmoid'))
         
@@ -135,17 +135,14 @@ class PowerGAN(object):
             D.add(BatchNormalization(momentum=0.9))
             D.add(LeakyReLU(alpha=0.2))
 
-        input_shape = (128,1)
+        input_shape = (int(self.img_rows/2),1)
         D = Sequential(name='Power_Discriminator')
         # First layer of discriminator is a convolution, minimum of two convolutional layers
         D.add(Conv1D(32, 5, strides=2, input_shape=input_shape))
         D.add(LeakyReLU(alpha=0.2))
         discriminator_block(D,64,2,2)
-        discriminator_block(D,128,2,1)
-        D.add(Flatten())
-        D.add(Dense(128))
-        D.add(BatchNormalization(momentum=0.9))
-        D.add(LeakyReLU(alpha=0.2))
+        discriminator_block(D,128,2,2)
+        D.add(Flatten(input_shape=input_shape))
         D.add(Dense(1))
         D.add(Activation('sigmoid'))
         D.summary()
@@ -204,8 +201,6 @@ class PowerGAN(object):
         G.summary()
         return G
 
-    def wasserstein_loss(self, y_true, y_pred):
-        return K.mean(y_true * y_pred)
     
     def build_discriminator_model(self):
         '''Build and compile the discriminator model from the discriminator.'''
@@ -213,8 +208,8 @@ class PowerGAN(object):
         input_img = Input(shape=input_shape)
         x = self.models['discriminator'](input_img)
         p=Reshape((256,256))(input_img)
-        p = Lambda(power1D)(p)
-        p = Reshape((128,1))(p)
+        p = Lambda(lambda v: ps.power1D(v))(p)
+        p = Reshape((int(self.img_rows/2),1))(p)
         p = self.models['power_discriminator'](p)
         # Compile the discriminator model on the number of specified gpus
         if self.gpus <=1:
@@ -239,7 +234,7 @@ class PowerGAN(object):
         for l in self.models['discriminator_model'].layers:
             l.trainable = False
             
-        input_shape = (64,)
+        input_shape = (self.latent_dim,)
         input_img = Input(shape=input_shape)
         x = self.models['generator'](input_img)
         x = self.models['discriminator_model'](x)
@@ -311,7 +306,8 @@ class PowerGAN(object):
                 
                 images_real = x_train[np.random.randint(0,
                     x_train.shape[0], size=batch_size), :, :, :]
-                
+                for i,image in enumerate(images_real):
+                    images_real[i]=np.rot90(image,np.random.randint(0,4))
                 # Generate fake images from generator
                 noise = np.random.normal(loc=0., scale=1., size=[batch_size, self.latent_dim])
                 images_fake = self.models['generator'].predict(noise)

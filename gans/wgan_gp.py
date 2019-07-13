@@ -115,9 +115,9 @@ class WGAN_GP(object):
         # Flatten final features and calculate the probability of the input belonging to the same 
         # as the training set
         D.add(Flatten(name = 'Flatten'))
-        D.add(Dense(1024, kernel_initializer='he_normal',bias_initializer='zeros', name = 'Dense_D1'))
-        D.add(LayerNormalization( name = 'LN_D%i'%(i+3)))
-        D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+3)))
+        # D.add(Dense(1024, kernel_initializer='he_normal',bias_initializer='zeros', name = 'Dense_D1'))
+        # D.add(LayerNormalization( name = 'LN_D%i'%(i+3)))
+        # D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+3)))
         D.add(Dense(1, kernel_initializer='he_normal',bias_initializer='zeros', name = 'Dense_D2'))
         
         D.summary()

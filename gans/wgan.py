@@ -9,6 +9,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Activation, Flatten, Reshape
 from keras.layers import Conv2D, Cropping2D, UpSampling2D
 from keras.layers import LeakyReLU, Dropout, Lambda, ReLU
+from keras.layers import BatchNormalization
 from keras.optimizers import RMSprop
 from keras.utils import multi_gpu_model
 from keras import backend as K
@@ -87,6 +88,7 @@ class WGAN(object):
         def discriminator_block(D, depth, kernel_size, stride):
             D.add(Conv2D(depth, kernel_size, strides=stride, padding='same', \
                         kernel_initializer='he_normal',bias_initializer='zeros', name = 'Conv2D_D%i'%(i+2)))
+            D.add(LayerNormalization( name = 'BN_D%i'%(i+2)))
             D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+2)))
         
         # depth*scale_depth give the number of features for each layer
@@ -113,8 +115,8 @@ class WGAN(object):
         # Flatten final features and calculate the probability of the input belonging to the same 
         # as the training set
         D.add(Flatten(name = 'Flatten'))
-        D.add(Dense(1024, kernel_initializer='he_normal',bias_initializer='zeros', name = 'Dense_D1'))
-        D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+3)))
+        # D.add(Dense(1024, kernel_initializer='he_normal',bias_initializer='zeros', name = 'Dense_D1'))
+        # D.add(LeakyReLU(alpha=0.2, name = 'LRelu_D%i'%(i+3)))
         D.add(Dense(1, kernel_initializer='glorot_normal',bias_initializer='zeros', name = 'Dense_D2'))
         
         D.summary()
@@ -127,7 +129,7 @@ class WGAN(object):
             G.add(UpSampling2D(stride,name='UpSample_%i'%(i+1), interpolation='bilinear'))
             G.add(Conv2D(depth, kernel, strides = 1, padding='same',
                     kernel_initializer='he_normal',bias_initializer='zeros', name = 'Conv2D_G%i'%(i+1)))
-            G.add(BatchNormalization(momentum=0.9, name = 'BN_G%i'%(i+2)))
+            G.add(LayerNormalization( name = 'BN_G%i'%(i+2)))
             G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G%i'%(i+2)))
         
         
@@ -150,7 +152,7 @@ class WGAN(object):
         G.add(Dense(dim1*dim2*depth*depth_scale[0], input_dim=self.latent_dim,
                         kernel_initializer='he_normal',bias_initializer='zeros', name = 'Dense_G'))
         G.add(Reshape((dim1, dim2, depth*depth_scale[0]),name='Reshape'))
-        G.add(BatchNormalization(momentum=0.9, name = 'BN_G1'))
+        G.add(LayerNormalization( name = 'BN_G1'))
         G.add(LeakyReLU(alpha=0.2, name = 'LRelu_G1'))
 
         # Iterate over layers defined by the number of kernels and strides
